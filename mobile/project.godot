@@ -34,12 +34,6 @@ sprint={"deadzone":0.25,"events":[Object(InputEventKey,"physical_keycode":419432
 interact={"deadzone":0.25,"events":[Object(InputEventKey,"physical_keycode":69)]}
 roll={"deadzone":0.25,"events":[Object(InputEventKey,"physical_keycode":4194326)]}
 
-[application]
-config/name="ALSAEQA Mobile"
-config/description="الصاعقة — cinematic third-person thunder adventure for Android"
-run/main_scene="res://mobile/scenes/Main.tscn"
-config/features=PackedStringArray("4.4", "GL Compatibility")
-
 [android]
 package/unique_name="com.alsaeqa.mobile"
 package/name="ALSAEQA Mobile"
