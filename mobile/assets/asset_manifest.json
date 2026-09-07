@@ -1,0 +1,19 @@
+{
+  "source_repository": "ali12hhh-oss/alsaeqa",
+  "release_tag": "assets-v1",
+  "packs": [
+    {"file":"ALSAEQA_REAL_ASSETS.zip","sha256":"36d3fd3ec7562bfb00bf48ec25319b10a1d44a7fa469d125c70906acff445006"},
+    {"file":"ALSAEQA_EXTRA_MONSTERS.zip.zip","sha256":"2ca1dad5e4faf62297c26bd8f7fbd140ee225a42184e5b039d3a2d4efbe04900"},
+    {"file":"ALSAEQA_EXTRA_ULTIMATE_MODULAR_RUINS.zip.zip","sha256":"28592e3cb79955c53b1989673d2b0e94705ffa275050883f780c933a72987"}
+  ],
+  "logical_assets": {
+    "hero": {"source_patterns":["*hero*","*character*","*basecharacter*"],"editable":true},
+    "workers": {"source_patterns":["*worker*","*civilian*","*villager*"],"editable":true},
+    "guards": {"source_patterns":["*guard*","*soldier*","*warrior*","*medieval*"],"editable":true},
+    "weapons": {"source_patterns":["*weapon*","*sword*","*axe*","*spear*","*bow*","*chain*"],"editable":true},
+    "mounts_and_beasts": {"source_patterns":["*beast*","*mount*","*horse*","*creature*","*monster*","*dragon*","*snake*"],"editable":true},
+    "environment": {"source_patterns":["*ruin*","*dungeon*","*prison*","*cave*","*village*","*nature*","*farm*","*prop*"],"editable":true},
+    "animations": {"source_patterns":["*animation*","*anim*"],"editable":true}
+  },
+  "conversion": {"preferred_runtime_format":"glb","source_preserved":true,"textures_preserved":true,"materials_preserved":true}
+}
