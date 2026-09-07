@@ -2,7 +2,7 @@ name: ALSAEQA Mobile Android
 
 on:
   push:
-    branches: [main, mobile-conversion]
+    branches: [main, mobile-conversion, mobile-assets-integration]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -34,6 +34,20 @@ jobs:
           sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.1"
           yes | sdkmanager --licenses >/dev/null || true
 
+      - name: Download and verify all real ALSAEQA assets
+        run: |
+          python3 Tools/Assets/sync_real_assets.py
+
+      - name: Install Blender for editable source conversion
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y blender
+
+      - name: Convert editable source models to mobile GLB
+        run: |
+          mkdir -p mobile/assets/converted
+          blender --background --python Tools/Assets/blender_convert.py -- build/source_assets mobile/assets/converted
+
       - name: Download Godot headless
         run: |
           curl -L --fail --retry 3 \
@@ -61,9 +75,11 @@ jobs:
           /tmp/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64 \
             --headless --path mobile --export-debug Android build/ALSAEQA.apk
 
-      - name: Upload APK
+      - name: Upload mobile build and editable asset index
         uses: actions/upload-artifact@v4
         with:
-          name: ALSAEQA-Mobile-debug
-          path: mobile/build/ALSAEQA.apk
+          name: ALSAEQA-Mobile-with-real-assets
+          path: |
+            mobile/build/ALSAEQA.apk
+            mobile/assets/converted/asset_inventory.json
           if-no-files-found: error
