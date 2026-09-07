@@ -1,8 +1,8 @@
 extends Node3D
 
 ## Runtime bridge for the real ALSAEQA asset library.
-## The source packs stay editable; CI converts source models to GLB and this
-## scene binds logical roles without baking asset data into gameplay code.
+## Source packs remain editable; CI converts source models to GLB and this
+## bridge binds logical roles without baking asset data into gameplay code.
 
 const ROOT := "res://assets/converted"
 const ROLE_PATTERNS := {
@@ -21,10 +21,9 @@ func _ready() -> void:
     if assets.is_empty():
         push_error("ALSAEQA real asset library is missing from the mobile build")
         return
-
-    _spawn_role_variants("hero", assets, 1, Vector3(0, 0, 0), 2.0)
+    _spawn_role_variants("hero", assets, 1, Vector3.ZERO, 2.0)
     _spawn_role_variants("worker", assets, worker_count, Vector3(-10, 0, 4), 1.9)
-    _spawn_role_variants("guard", assets, guard_count, Vector3(0, 0, 0), 2.0)
+    _spawn_role_variants("guard", assets, guard_count, Vector3.ZERO, 2.0)
     _spawn_role_variants("environment", assets, 8, Vector3.ZERO, 8.0)
 
 func _find_glb_files(path: String) -> Array[String]:
@@ -71,13 +70,16 @@ func _spawn_role_variants(role: String, assets: Array[String], count: int, origi
             continue
         var instance := packed.instantiate()
         instance.name = "%s_Real_%02d" % [role, i + 1]
-        add_child(instance)
-        instance.position = _role_position(role, i, count, origin)
+        var parent: Node = self
+        if role == "hero":
+            parent = get_parent().get_node_or_null("Hero")
+            if parent == null:
+                parent = self
+        parent.add_child(instance)
+        instance.position = Vector3.ZERO if role == "hero" else _role_position(role, i, count, origin)
         _normalize_height(instance, target_height)
 
 func _role_position(role: String, index: int, count: int, origin: Vector3) -> Vector3:
-    if role == "hero":
-        return origin
     if role == "worker":
         return origin + Vector3(float(index % 5) * 4.0, 0, float(index / 5) * 3.0)
     if role == "guard":
@@ -92,9 +94,7 @@ func _normalize_height(node: Node, target_height: float) -> void:
     if bounds.size.y <= 0.001:
         return
     var factor := target_height / bounds.size.y
-    if factor <= 0.0:
-        return
-    if node is Node3D:
+    if factor > 0.0 and node is Node3D:
         (node as Node3D).scale *= factor
 
 func _node_bounds(node: Node) -> AABB:
@@ -103,17 +103,11 @@ func _node_bounds(node: Node) -> AABB:
     for child in node.get_children():
         if child is VisualInstance3D:
             var a := (child as VisualInstance3D).get_aabb()
-            if not found:
-                bounds = a
-                found = true
-            else:
-                bounds = bounds.merge(a)
+            bounds = a if not found else bounds.merge(a)
+            found = true
         if child.get_child_count() > 0:
             var child_bounds := _node_bounds(child)
             if child_bounds.size != Vector3.ZERO:
-                if not found:
-                    bounds = child_bounds
-                    found = true
-                else:
-                    bounds = bounds.merge(child_bounds)
+                bounds = child_bounds if not found else bounds.merge(child_bounds)
+                found = true
     return bounds
