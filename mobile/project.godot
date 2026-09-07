@@ -5,7 +5,7 @@ config_version=5
 [application]
 config/name="ALSAEQA Mobile"
 config/description="الصاعقة — cinematic third-person thunder adventure for Android"
-run/main_scene="res://mobile/scenes/Main.tscn"
+run/main_scene="res://scenes/Main.tscn"
 config/features=PackedStringArray("4.4", "GL Compatibility")
 
 [display]
@@ -41,6 +41,6 @@ version/code=1
 version/name="0.1.0"
 
 [autoload]
-GameState="*res://mobile/scripts/game_state.gd"
-StageRegistry="*res://mobile/scripts/stage_registry.gd"
-CinematicDirector="*res://mobile/scripts/cinematic_director.gd"
+GameState="*res://scripts/game_state.gd"
+StageRegistry="*res://scripts/stage_registry.gd"
+CinematicDirector="*res://scripts/cinematic_director.gd"
