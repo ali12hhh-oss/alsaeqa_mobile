@@ -1,66 +1,98 @@
-# ALSAEQA — Project Continuity / Canonical State
+# الصاعقة موبايل — Project Continuity / Canonical State
 
-Canonical repository: ali12hhh-oss/alsaeqa
-Project: الصاعقة / ALSAEQA
-Engine: Unreal Engine 5
-Primary target: Android
-Architecture: C++ gameplay foundation + Blueprint/Sequencer authored presentation.
-Rule: one continuous project; no V1/V2/V3 forks; no primitive placeholders as final art.
+هذا الملف هو سجل الاستمرارية الرئيسي لمشروع **الصاعقة موبايل**، ويجب قراءته قبل متابعة العمل.
 
-## Stage 1 — Chains in the Mine
-Mandatory independent gates:
-- RescueWorkers = 5 distinct workers
-- DefeatSlavers = 1 designated Stage 1 slaver
+## 1. هوية المشروع
+- الاسم الرسمي الجديد: **الصاعقة موبايل — ALSAEQA Mobile**.
+- المستودع: `ali12hhh-oss/alsaeqa_mobile`.
+- الهدف: لعبة Android ثلاثية الأبعاد Mobile-first.
+- المشروع واحد مستمر؛ لا V1/V2/V3.
+- نحافظ على قصة الصاعقة وهوية اللعبة والمراحل والمشاهد السينمائية والمشاهد القتالية وتطور البطل والرفيقة والقدرات والمركوبات.
+- لا تُعتبر الأصول البدائية أو الـblockout رسومات نهائية.
 
-Enemy-force standard:
-- The mine must contain **at least 7 enemies/slavers**, so the hostile force is clearly larger than the five workers being rescued.
-- Seven is the production minimum, not a requirement to kill seven enemies.
-- Exactly one or more specifically configured Stage 1 objective slavers may report the `DefeatSlavers` gate, but the mandatory gate remains `DefeatSlavers = 1`.
-- The remaining enemies are supporting guards, patrols, responders and pursuit/combat units that create pressure and escalation without becoming an extra progression gate.
-- Enemy placement must be distributed across the mine rather than stacking the whole force in one room. The encounter rhythm should alternate between discovery/stealth pressure, rescue interaction, pursuit/combat, traversal and the final confrontation.
+## 2. ما تم نقله/تأسيسه في نسخة الموبايل
+- أساس مشروع Godot 4 داخل `mobile/`.
+- إعداد Android وملف التصدير وWorkflow للبناء عبر GitHub Actions.
+- حالة اللعبة والتقدم والحفظ الأساسي.
+- سجل المراحل 1–70.
+- مدير المشاهد السينمائية ونقاط القصة.
+- أساس حركة البطل والكاميرا والتحكم اللمسي.
+- أساس Stage 1 وأهداف الإنقاذ والمواجهة.
+- طبقة ربط الأصول الحقيقية ومخزونها.
+- تنزيل حزم الأصول من Releases للمستودع الأصلي مع SHA-256.
+- استخراج المصدر قبل التحويل.
+- مسار تحويل النماذج إلى GLB مع محاولة الحفاظ على الخامات والأنيميشن.
 
-Final sequence: awakening aftermath → return to mine → discover surviving workers → rescue 1 → enemy response → rescue 2 → rescue 3 → escalation → rescue 4 → rescue 5 → defeat designated slaver → first mine-network clue → automatic Stage 1→2 transition.
+## 3. الأصول الحقيقية
+المصدر الرسمي للأصول هو Releases في `ali12hhh-oss/alsaeqa`، وليس افتراض وجود `.uasset/.umap` داخل مستودع الموبايل.
 
-Five workers use distinct authored methods: Break Chain, Open Cage, Release Lift, Cut Binding, Escort Out. Each has a stable WorkerId and optional RescueSequenceTag.
-Each designated slaver has stable StageOneSlaverId. Death is authoritative and reports once.
+الحزم المسجلة:
+- `ALSAEQA_REAL_ASSETS.zip`
+- `ALSAEQA_EXTRA_MONSTERS.zip.zip`
+- `ALSAEQA_EXTRA_ULTIMATE_MODULAR_RUINS.zip.zip`
 
-## Stage 1 persistence — implemented
-ALSAEQASaveGame stores RescuedStageOneWorkerIds and DefeatedStageOneSlaverIds.
-ALSAEQASaveManager exposes record/query/count APIs.
-A previously rescued worker reloads as rescued and cannot count again.
-A previously defeated designated slaver reloads as dead and cannot count again.
+ملفات الربط:
+- `mobile/assets/asset_manifest.json`
+- `mobile/assets/README.md`
+- `Tools/Assets/sync_real_assets.py`
+- `Tools/Assets/blender_convert.py`
 
-## Current committed foundation
-- 1–70 stage registry and progression validation.
-- Automatic stage flow with delayed transition.
-- Stage objective component with Stage 1 5+1 gates.
-- Worker rescue interaction and five presentation methods.
-- Stable Stage 1 worker/slaver persistence.
-- Designated slaver death linkage.
-- First Stage 1 clue unlock when both gates complete.
-- Automatic Stage 1→2 transition and cinematic hooks.
-- Forward interaction input (E).
-- Cinematic action moments and Blueprint story-beat hook.
-- Real-asset import/release documentation and primitive-fallback prohibition.
+**القابلية للتعديل:** المصدر يُحافظ عليه في بيئة البناء، ويمكن إعادة تحويل الأصل بعد تعديله. لا تُسطّح الأصول إلى نتائج غير قابلة لإعادة التحرير، ولا تغيّر منطق اللعبة عند استبدال أصل ما؛ استخدم نفس الـlogical asset ID.
 
-## Stage 1 production layer still requiring Unreal asset authoring
-The remaining work that cannot be honestly completed through source-only repository edits is placement and wiring inside the actual Unreal level: five distributed worker locations, **at least seven distributed mine enemies**, real cages/chains/lift/bindings, rescue animations, camera/Sequencer shots, VFX/audio, and coordinated enemy encounter choreography. These require the real binary .uasset/.umap content and an Unreal build/editor environment.
+## 4. Stage 1 — Chains in the Mine
+### البوابات الإلزامية
+- `RescueWorkers = 5` عمال مختلفين.
+- `DefeatSlavers = 1` سلافر مخصص لهدف المرحلة.
 
-## Next engineering queue
-1. Stage 1 enemy escalation/encounter orchestration.
-2. Data-drive later-stage objectives.
-3. Animation-notify melee hit windows.
-4. Real climbing/ledge traversal and IK fall rescue.
-5. Wind/environment reactions.
-6. Complete ThunderBeast Crossing/Sense/Storm Charge.
-7. Companion AI/combat/rescue/persistence.
-8. Dialogue/quest/event orchestration and Sequencer.
-9. Broader save persistence for story/world/mount states.
-10. Real asset mapping/import.
-11. Android optimization and actual UE build verification.
+### القوة المعادية
+- يجب أن تحتوي المنجم على **7 أعداء/سلافرات على الأقل**، أي أكثر من عدد العمال الخمسة.
+- السبعة حد إنتاجي أدنى، وليست مهمة قتل سبعة.
+- واحد فقط على الأقل من الأعداء يرفع بوابة `DefeatSlavers`؛ البقية حراس ودوريات ومستجيبون ومطاردون يصنعون الضغط والتصعيد.
+- توزيع الأعداء في أنحاء المنجم وليس في غرفة واحدة.
 
-## Continuity protocol
-At every new chat: read this file, Docs/ALSAEQA_MASTER_PROJECT_BIBLE.md, Docs/DEVELOPMENT_RULES.md, inspect latest relevant commits/files, continue from the highest unfinished item, and never recreate completed systems. After meaningful implementation, update this file.
+### تسلسل المرحلة
+استيقاظ البطل بعد الانهيار → العودة للمنجم → اكتشاف العمال → إنقاذ 1 → استجابة الأعداء → إنقاذ 2 → إنقاذ 3 → تصعيد → إنقاذ 4 → إنقاذ 5 → هزيمة السلافر المخصص → كشف أول دليل → الانتقال التلقائي إلى Stage 2.
 
-## Quality gate
-No feature is done because a class or document exists. Runtime connection, failure safety, persistence implications, Android scalability and Blueprint/asset integration must be considered. Never claim a UE build succeeded without an actual build result.
+طرق الإنقاذ الخمس: Break Chain، Open Cage، Release Lift، Cut Binding، Escort Out. لكل عامل WorkerId ثابت.
+
+## 5. ما هو موثق/مؤسس لكنه يحتاج استكمالاً فعلياً
+- توصيل جميع الأصول الحقيقية بالشخصيات والأسلحة والمركوبات والوحوش والبيئات داخل المشاهد.
+- استبدال الـblockout المؤقت بالأصول الحقيقية.
+- الأنيميشنات النهائية وVFX والصوت.
+- إخراج المشاهد السينمائية الفعلية والكاميرات والـSequencer.
+- القتال المتقدم، hit windows عبر animation notifies، وردود الضربات.
+- AI كامل للأعداء والرفيقة.
+- حركة التسلق والـledge traversal وIK للإنقاذ والسقوط.
+- نظام الرياح وتأثيرها على البيئة والملابس والشعر والرمال.
+- استكمال قدرات ThunderBeast، خصوصاً Crossing وSense وتصحيح منطق Storm Charge.
+- الحفظ الكامل لحالة القصة والعالم والرفيقة والإنقاذ والمركوبات.
+- الحوار والمهام والأحداث المترابطة.
+- تحسين الأداء والذاكرة والجودة للموبايل.
+- اختبار APK فعلياً على Android.
+
+## 6. قواعد مهمة لمن يكمل المشروع
+1. لا تعِد تنفيذ ما تم إنجازه.
+2. لا تضف placeholders بدائية كرسومات نهائية.
+3. افحص الملفات الحالية قبل التعديل.
+4. حافظ على أسماء الـIDs والحالة المحفوظة عند ربط الأصول.
+5. أي ميزة لا تكون موصولة بمسار runtime آمن لا تُعتبر مكتملة.
+6. لا تقل إن البناء ناجح إلا بعد نتيجة فعلية من GitHub Actions.
+7. أي تعديل بصري يجب أن يحافظ على هوية الصاعقة ولا يحولها إلى لعبة مختلفة.
+8. عند استبدال أصل، يجب أن يبقى المصدر قابلاً لإعادة التحرير والتحويل.
+
+## 7. ترتيب الاستكمال المقترح
+1. إكمال طبقة الأصول الحقيقية وربطها بالمشهد.
+2. بناء Stage 1 بصرياً وGameplay بشكل كامل.
+3. ربط الأنيميشن والصوت وVFX والكاميرات السينمائية.
+4. توسيع أهداف المراحل 2–70 من بيانات إلى gameplay فعلي.
+5. إكمال القتال والـAI والحركة المتقدمة.
+6. إكمال الرفيقة والمركوبات وThunderBeast.
+7. الحفظ الكامل.
+8. تحسين Android.
+9. بناء APK واختباره فعلياً.
+
+## 8. بروتوكول الاستمرارية
+في أي جلسة جديدة: اقرأ هذا الملف، ثم `Docs/ALSAEQA_MASTER_PROJECT_BIBLE.md` و`Docs/DEVELOPMENT_RULES.md` و`mobile/CONVERSION_STATUS.md`، وافحص آخر commits والملفات قبل التنفيذ. أكمل أعلى بند غير مكتمل ولا تنشئ نسخة موازية.
+
+## 9. تعريف الإنجاز
+الوثيقة أو السكربت وحدهما لا يعنيان أن الميزة مكتملة. الإنجاز يعني اتصال runtime، معالجة أخطاء آمنة، حفظ/استرجاع عند الحاجة، توافق Android، وربط حقيقي بالأصول والعروض البصرية.
