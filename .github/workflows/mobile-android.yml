@@ -1,0 +1,69 @@
+name: ALSAEQA Mobile Android
+
+on:
+  push:
+    branches: [main, mobile-conversion]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  GODOT_VERSION: 4.4.1
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android build tools
+        run: |
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.1"
+          yes | sdkmanager --licenses >/dev/null || true
+
+      - name: Download Godot headless
+        run: |
+          curl -L --fail --retry 3 \
+            "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip" \
+            -o /tmp/godot.zip
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          chmod +x /tmp/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64
+
+      - name: Download Android export templates
+        run: |
+          curl -L --fail --retry 3 \
+            "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_export_templates.tpz" \
+            -o /tmp/templates.tpz
+          mkdir -p ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
+          unzip -q /tmp/templates.tpz -d /tmp/templates
+          cp /tmp/templates/templates/android_* ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable/
+
+      - name: Validate mobile project
+        run: |
+          /tmp/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64 --headless --path mobile --editor --quit
+
+      - name: Export Android APK
+        run: |
+          mkdir -p mobile/build
+          /tmp/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64 \
+            --headless --path mobile --export-debug Android build/ALSAEQA.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ALSAEQA-Mobile-debug
+          path: mobile/build/ALSAEQA.apk
+          if-no-files-found: error
