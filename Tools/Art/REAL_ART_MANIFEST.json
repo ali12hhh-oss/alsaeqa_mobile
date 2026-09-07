@@ -1,0 +1,26 @@
+{
+  "project": "ALSAEQA",
+  "visual_policy": "authored_real_3d_only_for_normal_gameplay",
+  "fallback_policy": "procedural_geometry_is_emergency_fallback_only",
+  "roles": {
+    "Hero": {"source": "Quaternius Universal Base Characters", "license": "CC0", "status": "Awaiting local import"},
+    "Companion": {"source": "Quaternius Universal Base Characters + Modular Character Outfits - Fantasy", "license": "CC0", "status": "Awaiting local import"},
+    "HumanoidAnimations": {"source": "Quaternius Universal Animation Library + Library 2", "license": "CC0", "status": "Awaiting local import"},
+    "Mounts": {"source": "Approved rigged animal/creature source", "license": "Verify before integration", "status": "Planned"},
+    "GiantSnake": {"source": "Approved rigged snake/creature source", "license": "Verify before integration", "status": "Planned"},
+    "Bosses": {"source": "Approved rigged creature/humanoid sources", "license": "Verify before integration", "status": "Planned"},
+    "Environment": {"source": "Approved modular environment packs", "license": "Verify per pack", "status": "Planned"},
+    "Weapons": {"source": "Approved fantasy weapon packs", "license": "Verify per pack", "status": "Planned"}
+  },
+  "required_final_tests": [
+    "No primitive body visible in normal gameplay",
+    "Hero and companion remain visually distinct at thumbnail size",
+    "Enemy factions have distinct silhouettes",
+    "GiantSnake is a continuous authored creature mesh",
+    "ThunderBeast has a unique silhouette and specialized animation set",
+    "FlyingBeast has authored wings and aerial animation",
+    "All imported binary assets have verified licenses",
+    "All normal gameplay animation uses skeletal animation",
+    "Android LOD/material/texture budgets pass"
+  ]
+}

@@ -1,0 +1,63 @@
+{
+  "project": "ALSAEQA",
+  "engine": "5.8",
+  "purpose": "Visual asset integration contract",
+  "final_assets_must_be_real": true,
+  "allow_primitive_final_assets": false,
+  "asset_slots": {
+    "hero": {
+      "id": "ALSAEQA_Hero",
+      "type": "human_skeletal_character",
+      "required": true,
+      "rig": "UE5-compatible humanoid",
+      "animation_sets": ["Locomotion", "Combat", "Dodge", "Jump", "Thunder", "HitReact", "Death", "Mount", "Dismount"]
+    },
+    "companion": {
+      "id": "ALSAEQA_Companion",
+      "type": "human_skeletal_character",
+      "required": true,
+      "rig": "UE5-compatible humanoid",
+      "animation_sets": ["Locomotion", "Combat", "Follow", "Rescue", "Capture", "Memory", "FamilyReaction", "Mount"]
+    },
+    "enemy_base": {
+      "id": "ALSAEQA_EnemyBase",
+      "type": "humanoid_enemy",
+      "required": true,
+      "animation_sets": ["Patrol", "Alert", "Chase", "LightAttack", "HeavyAttack", "HitReact", "Stagger", "Death"]
+    },
+    "bosses": {
+      "id": "ALSAEQA_BossSet",
+      "type": "boss_characters",
+      "required": true,
+      "animation_sets": ["Intro", "Idle", "Phase1", "Phase2", "Phase3", "Telegraph", "Attack", "HitReact", "Death"]
+    },
+    "giant_snake": {
+      "id": "ALSAEQA_GiantSnake",
+      "type": "skeletal_creature",
+      "required": true,
+      "bones": ["jaw", "neck", "body", "tail"],
+      "animation_sets": ["Idle", "Slither", "Bite", "Charge", "Coil", "Retreat", "HitReact", "Death"]
+    },
+    "weapons": {
+      "id": "ALSAEQA_WeaponSet",
+      "type": "static_or_skeletal_weapon_meshes",
+      "required": true,
+      "slots": ["HeroPrimary", "HeroSecondary", "Companion", "Sword", "Scimitar", "Axe", "Spear", "Hammer", "Shield", "EnemyVariants", "BossUnique"]
+    },
+    "world": {
+      "id": "ALSAEQA_WorldArtSet",
+      "type": "environment_asset_library",
+      "required": true,
+      "regions": ["Mine", "DeepCave", "Forest", "ThunderMountains", "MonsterValley", "AbandonedCity", "TyrantFortress", "BlackDesert", "IceKingdom", "GiantsLand"]
+    }
+  },
+  "integration_rules": {
+    "pbr": true,
+    "lods": true,
+    "nanite_when_appropriate": true,
+    "android_scalability": true,
+    "unique_alsaeqa_modification": true,
+    "commercial_license_required": true,
+    "license_evidence_required": true
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "FileVersion": 3,
+  "EngineAssociation": "5.8",
+  "Category": "Games",
+  "Description": "الصاعقة — ALSAEQA: original 3D thunder adventure game.",
+  "Modules": [
+    {
+      "Name": "ALSAEQA",
+      "Type": "Runtime",
+      "LoadingPhase": "Default"
+    }
+  ],
+  "Plugins": [
+    {
+      "Name": "PythonScriptPlugin",
+      "Enabled": true
+    }
+  ],
+  "TargetPlatforms": [
+    "Android",
+    "Windows"
+  ]
+}

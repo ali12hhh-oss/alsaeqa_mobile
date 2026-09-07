@@ -1,0 +1,34 @@
+# Unreal Engine generated files
+Binaries/
+DerivedDataCache/
+Intermediate/
+Saved/
+.vs/
+.vscode/
+
+# Build outputs
+Build/Receipts/
+Build/Android/
+Build/Windows/
+
+# IDE / OS
+*.suo
+*.user
+*.userosscache
+*.sln
+.DS_Store
+Thumbs.db
+
+# JetBrains
+.idea/
+*.iml
+
+# Logs
+*.log
+
+# Crash dumps
+*.dmp
+
+# Unreal autosaves
+Content/__ExternalActors__/
+Content/__ExternalObjects__/
