@@ -1,13 +1,17 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/player.gd" id="2_player"]
 [ext_resource type="Script" path="res://scripts/stage1_controller.gd" id="3_stage"]
+[ext_resource type="Script" path="res://scripts/visual_world.gd" id="4_visual"]
+[ext_resource type="Script" path="res://scripts/mobile_camera.gd" id="5_camera"]
+[ext_resource type="Script" path="res://scripts/virtual_controls.gd" id="6_controls"]
 
 [node name="ALSAEQAMobile" type="Node3D"]
 script = ExtResource("1_main")
 
 [node name="World" type="Node3D" parent="."]
+script = ExtResource("4_visual")
 
 [node name="Hero" type="CharacterBody3D" parent="."]
 script = ExtResource("2_player")
@@ -15,23 +19,41 @@ script = ExtResource("2_player")
 [node name="Stage1" type="Node" parent="."]
 script = ExtResource("3_stage")
 
+[node name="Camera3D" type="Camera3D" parent="."]
+position = Vector3(0, 4, 7.5)
+script = ExtResource("5_camera")
+
 [node name="MobileHUD" type="CanvasLayer" parent="."]
 
-[node name="Title" type="Label" parent="MobileHUD"]
-offset_left = 36.0
-offset_top = 28.0
-offset_right = 800.0
-offset_bottom = 86.0
-theme_override_font_sizes/font_size = 32
-text = "الصاعقة — Chains in the Mine"
+[node name="TitlePanel" type="Panel" parent="MobileHUD"]
+offset_left = 28.0
+offset_top = 24.0
+offset_right = 690.0
+offset_bottom = 112.0
+
+[node name="Title" type="Label" parent="MobileHUD/TitlePanel"]
+offset_left = 18.0
+offset_top = 10.0
+offset_right = 640.0
+offset_bottom = 52.0
+theme_override_font_sizes/font_size = 28
+text = "الصاعقة  •  المنجم"
 
 [node name="Objective" type="Label" parent="MobileHUD"]
 offset_left = 38.0
-offset_top = 88.0
+offset_top = 118.0
+offset_right = 900.0
+offset_bottom = 164.0
+theme_override_font_sizes/font_size = 21
+text = "إنقاذ العمال: 0/5    هزيمة السجّان: 0/1"
+
+[node name="Hint" type="Label" parent="MobileHUD"]
+offset_left = 40.0
+offset_top = 172.0
 offset_right = 850.0
-offset_bottom = 136.0
-theme_override_font_sizes/font_size = 22
-text = "إنقاذ العمال: 0/5    هزيمة زعيم المستعبدين: 0/1"
+offset_bottom = 205.0
+theme_override_font_sizes/font_size = 16
+text = "أنقذ العمال • تجنّب الحراس • أنهِ مواجهة السجّان"
 
 [node name="MobileControls" type="Control" parent="MobileHUD"]
 layout_mode = 3
@@ -39,3 +61,39 @@ anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 mouse_filter = 2
+script = ExtResource("6_controls")
+
+[node name="Sprint" type="Button" parent="MobileHUD/MobileControls"]
+offset_left = 72.0
+offset_top = 610.0
+offset_right = 202.0
+offset_bottom = 680.0
+text = "ركض"
+
+[node name="Roll" type="Button" parent="MobileHUD/MobileControls"]
+offset_left = 215.0
+offset_top = 610.0
+offset_right = 345.0
+offset_bottom = 680.0
+text = "تدحرج"
+
+[node name="Light" type="Button" parent="MobileHUD/MobileControls"]
+offset_left = 1430.0
+offset_top = 560.0
+offset_right = 1575.0
+offset_bottom = 635.0
+text = "هجوم"
+
+[node name="Heavy" type="Button" parent="MobileHUD/MobileControls"]
+offset_left = 1590.0
+offset_top = 470.0
+offset_right = 1740.0
+offset_bottom = 545.0
+text = "ضربة قوية"
+
+[node name="Thunder" type="Button" parent="MobileHUD/MobileControls"]
+offset_left = 1580.0
+offset_top = 650.0
+offset_right = 1740.0
+offset_bottom = 725.0
+text = "رعد"
