@@ -1,23 +1,49 @@
-# الصاعقة — ALSAEQA
+# الصاعقة موبايل — ALSAEQA Mobile
 
-Original 3D thunder adventure game.
+مشروع تحويل **الصاعقة (ALSAEQA)** إلى لعبة موبايل Android ثلاثية الأبعاد، مع الحفاظ على هوية اللعبة وقصتها ومراحلها والمشاهد السينمائية والمشاهد القتالية وتطور البطل والرفيقة والقدرات والمركوبات.
 
-## Project policy
+## الحالة الحالية
 
-This repository is the **single canonical project repository** for ALSAEQA.
+هذا المستودع هو المسار الرسمي لمشروع **الصاعقة موبايل**. التحويل جارٍ تدريجياً إلى بنية Mobile-first قابلة للبناء عبر GitHub Actions.
 
-- No split editions or parallel versions.
-- All game systems, content, fixes, improvements, and additions belong to this same project.
-- The project evolves continuously as one game.
-- Unreal Engine 5 + C++/Blueprints.
-- Primary target: Android, with scalable quality tiers.
+### ما تم إنجازه
+- إنشاء بنية Godot 4 موجهة إلى Android داخل `mobile/`.
+- إنشاء أساس الحالة المستمرة والتقدم والمراحل.
+- إنشاء سجل المراحل المخطط من 1 إلى 70.
+- إنشاء مدير المشاهد السينمائية ونقاط القصة الأساسية.
+- إنشاء أساس حركة البطل والتحكم اللمسي والكاميرا الثالثة.
+- إنشاء أساس Stage 1 وأهداف الإنقاذ والمواجهة.
+- إنشاء خط CI لبناء APK والتحقق من المشروع.
+- إنشاء طبقة ربط للأصول الحقيقية ومخزون للأصول.
+- إضافة تنزيل الأصول الأصلية من Releases للمستودع الأصلي مع التحقق من SHA-256 ثم استخراجها في بيئة البناء.
+- إضافة مسار تحويل نماذج المصدر إلى GLB مع الحفاظ على الخامات والأنيميشن قدر الإمكان.
 
-## Core vision
+### ما لم يكتمل بعد
+- لا يوجد ادعاء بنجاح البناء قبل ظهور نتيجة ناجحة فعلية في GitHub Actions.
+- الـ blockout الإجرائي ليس رسومات نهائية ويجب استبداله بالأصول الحقيقية.
+- ربط كل شخصية وسلاح ومركوب ووحش وبيئة حقيقي بالمشهد والأنظمة يحتاج إلى الاستكمال.
+- الأنيميشنات وVFX والصوت والكاميرات السينمائية والقتال المتقدم والذكاء الاصطناعي والحفظ الكامل والتحسينات الخاصة بالموبايل ما زالت تحتاج إلى عمل.
+- يجب اختبار APK فعلياً على Android قبل اعتبار المشروع جاهزاً.
 
-A cinematic third-person 3D adventure about the last heir of an ancient family of Thunder Giants. The hero discovers his supernatural heritage after surviving a catastrophic event in a slave mine and begins a long journey to find his family, confront those who hunted them, and master the forces of thunder.
+## الأصول الحقيقية والقابلية للتعديل
+الأصول الأصلية موجودة في Releases للمستودع الأصلي `ali12hhh-oss/alsaeqa`.
 
-## Repository scope
+طبقة الأصول في هذا المستودع:
+- `mobile/assets/asset_manifest.json`
+- `Tools/Assets/sync_real_assets.py`
+- `Tools/Assets/blender_convert.py`
+- `mobile/assets/README.md`
 
-This repository contains the source code, project configuration, technical documentation, gameplay design, content specifications, build configuration, automation, and all text-based project assets that can be maintained through Git.
+المصدر يُحافظ عليه أثناء عملية البناء، والأصول المحولة تُولد من المصدر ويمكن إعادة تحويلها بعد أي تعديل. لا ينبغي تحويل الأصول إلى ملفات مسطحة غير قابلة لإعادة التحرير، ولا ينبغي استبدال الأصول الحقيقية بأصول بدائية كحل نهائي.
 
-Binary Unreal assets such as `.uasset` and `.umap` require Unreal Editor/content tooling and are not represented by placeholder text files.
+## وثائق الاستكمال
+ابدأ دائماً من:
+1. `Docs/ALSAEQA_MASTER_PROJECT_BIBLE.md`
+2. `Docs/PROJECT_CONTINUITY.md`
+3. `Docs/DEVELOPMENT_RULES.md`
+4. `mobile/CONVERSION_STATUS.md`
+5. `mobile/assets/README.md`
+6. `mobile/assets/asset_manifest.json`
+
+## قاعدة الاستمرارية
+هذا مشروع واحد مستمر باسم **الصاعقة موبايل**. لا تنشئ V1/V2/V3 ولا تعيد تنفيذ الأنظمة المكتملة. اقرأ الحالة الفعلية للمستودع قبل أي تعديل، ثم أكمل أعلى بند غير مكتمل مع الحفاظ على القصة والهوية والجودة المستهدفة.
