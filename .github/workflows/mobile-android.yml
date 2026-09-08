@@ -105,6 +105,32 @@ jobs:
           unzip -q /tmp/templates.tpz -d /tmp/templates
           cp /tmp/templates/templates/android_* ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable/
 
+      - name: Configure Godot Android export environment
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.config/godot
+          cat > ~/.config/godot/editor_settings-4.tres <<EOF
+          [gd_resource type="EditorSettings" format=3]
+
+          [resource]
+
+          export/android/android_sdk_path = "$ANDROID_HOME"
+          export/android/java_sdk_path = "$JAVA_HOME"
+          export/android/debug_keystore = "$HOME/.android/debug.keystore"
+          export/android/debug_keystore_user = "androiddebugkey"
+          export/android/debug_keystore_pass = "android"
+          export/android/shutdown_adb_on_exit = true
+          export/android/force_system_user = false
+          EOF
+
+          test -d "$ANDROID_HOME"
+          test -d "$JAVA_HOME"
+          test -f "$HOME/.android/debug.keystore"
+
+          echo "Godot Android SDK: $ANDROID_HOME"
+          echo "Godot Java SDK: $JAVA_HOME"
+          echo "Godot debug keystore: $HOME/.android/debug.keystore"
+
       - name: Validate mobile project
         run: |
           /tmp/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64 --headless --path mobile --editor --quit
