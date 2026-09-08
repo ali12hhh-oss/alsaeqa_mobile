@@ -3,7 +3,7 @@
   "release_tag": "assets-v1",
   "packs": [
     {"file":"ALSAEQA_REAL_ASSETS.zip","sha256":"36d3fd3ec7562bfb00bf48ec25319b10a1d44a7fa469d125c70906acff445006"},
-    {"file":"ALSAEQA_EXTRA_MONSTERS.zip.zip","sha256":"2ca1dad5e4faf62297c26bd8f7fbd140ee225a42184d5b039a2d4efbe04900"},
+    {"file":"ALSAEQA_EXTRA_MONSTERS.zip.zip","sha256":"2ca1dad5e4faf62297c26bd8f7fbd140ee225a42184d5b039d3a2d4efbe04900"},
     {"file":"ALSAEQA_EXTRA_ULTIMATE_MODULAR_RUINS.zip.zip","sha256":"28592e3cb79955c53b1989673d2b0e94705ffa275050883f780c933a72987"}
   ],
   "logical_assets": {
