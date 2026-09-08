@@ -40,6 +40,20 @@ jobs:
         run: |
           python3 Tools/Assets/sync_real_assets.py
 
+      - name: Inspect all release archives and nested ZIPs
+        run: |
+          python3 Tools/Assets/inspect_release_archives.py
+
+      - name: Upload real asset archive inspection report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ALSAEQA-real-asset-archive-inventory
+          path: |
+            build/asset_inspection/release_archive_inventory.json
+            build/asset_inspection/release_archive_inventory.txt
+          if-no-files-found: warn
+
       - name: Install Blender for editable source conversion
         run: |
           sudo apt-get update
