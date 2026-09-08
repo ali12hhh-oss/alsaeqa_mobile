@@ -53,7 +53,7 @@ func release_thunder() -> void:
     if not thunder_charging:
         return
     thunder_charging = false
-    var ratio := clamp(thunder_charge, 0.0, 1.0)
+    var ratio: float = clampf(thunder_charge, 0.0, 1.0)
     GameState.thunder_charge = ratio
     CinematicDirector.thunder_impact(ratio)
     thunder_charge = 0.0
