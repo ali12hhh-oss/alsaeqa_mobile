@@ -35,13 +35,6 @@ def download(url: str, target: Path) -> None:
 
 
 def release_digests() -> dict[str, str]:
-    """Read GitHub's immutable release-asset SHA-256 digests.
-
-    The manifest remains a checked-in record of the expected assets, but the
-    GitHub release metadata is the authoritative checksum source. This avoids
-    false failures caused by a stale/corrupted manifest value while still
-    refusing any downloaded bytes that differ from the published release.
-    """
     request = urllib.request.Request(
         RELEASE_API_URL,
         headers={"Accept": "application/vnd.github+json", "User-Agent": "alsaeqa-mobile-assets"},
@@ -59,7 +52,7 @@ def release_digests() -> dict[str, str]:
 
 
 def extract_nested(zip_path: Path, destination: Path) -> None:
-    """Extract an archive and any ZIP files contained in it recursively."""
+    """Extract an archive and ZIP files contained at any depth."""
     destination.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(zip_path) as z:
         z.extractall(destination)
@@ -68,7 +61,7 @@ def extract_nested(zip_path: Path, destination: Path) -> None:
     while True:
         nested_archives = [
             p for p in destination.rglob("*.zip")
-            if p.is_file() and p != zip_path and p not in processed
+            if p.is_file() and p not in processed
         ]
         if not nested_archives:
             break
@@ -84,11 +77,26 @@ def extract_nested(zip_path: Path, destination: Path) -> None:
                 nested.unlink()
                 changed = True
             except zipfile.BadZipFile:
-                # Keep non-ZIP files that merely use a .zip suffix for inventory.
                 continue
 
         if not changed:
             break
+
+
+# Files that can be referenced by a glTF/GLB or are otherwise required by
+# the original asset package. In particular, .bin is mandatory for many
+# Standard glTF files and must remain beside its .gltf file.
+source_exts = {
+    ".fbx", ".obj", ".dae", ".gltf", ".glb", ".blend",
+    ".bin", ".mtl",
+    ".png", ".jpg", ".jpeg", ".webp", ".tga",
+    ".wav", ".ogg", ".mp3", ".json",
+}
+runtime_copy_exts = {
+    ".gltf", ".glb", ".bin", ".mtl",
+    ".png", ".jpg", ".jpeg", ".webp", ".tga",
+    ".wav", ".ogg", ".mp3", ".json",
+}
 
 
 def main() -> int:
@@ -109,10 +117,6 @@ def main() -> int:
         expected = str(pack.get("sha256", "")).strip().lower()
         published = remote_digests.get(name)
 
-        # GitHub's release digest is authoritative. If available, require the
-        # downloaded bytes to match it. The manifest value is also checked so
-        # stale metadata is visible, but it cannot cause a false rejection when
-        # the published release and downloaded bytes agree.
         if published:
             if actual != published:
                 raise RuntimeError(
@@ -132,31 +136,50 @@ def main() -> int:
         if not extract_root.exists():
             extract_nested(archive, extract_root)
 
-    source_exts = {
-        ".fbx", ".obj", ".dae", ".gltf", ".glb", ".blend",
-        ".png", ".jpg", ".jpeg", ".webp", ".tga",
-        ".wav", ".ogg", ".mp3", ".json",
-    }
     for src in sorted(BUILD.rglob("*")):
-        if not src.is_file() or src.parent.name == "_downloads":
+        if not src.is_file() or "_downloads" in src.parts:
             continue
-        if src.suffix.lower() not in source_exts:
+        suffix = src.suffix.lower()
+        if suffix not in source_exts:
             continue
+
         rel = src.relative_to(BUILD).as_posix()
         item = {
             "source": rel,
-            "extension": src.suffix.lower(),
+            "extension": suffix,
             "size": src.stat().st_size,
             "sha256": sha256(src),
         }
         inventory.append(item)
-        if src.suffix.lower() in {
-            ".gltf", ".glb", ".png", ".jpg", ".jpeg", ".webp", ".tga",
-            ".wav", ".ogg", ".mp3", ".json",
-        }:
+
+        # Preserve glTF sidecars (.bin/.mtl) in exactly the same relative
+        # location. This prevents Godot from importing a .gltf without its
+        # referenced binary buffer/material files.
+        if suffix in runtime_copy_exts:
             dst = CONVERTED / rel
             dst.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(src, dst)
+
+    missing_bins = []
+    for gltf in CONVERTED.rglob("*.gltf"):
+        try:
+            document = json.loads(gltf.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+            continue
+        for buffer in document.get("buffers", []):
+            uri = buffer.get("uri")
+            if not uri or uri.startswith("data:"):
+                continue
+            sidecar = (gltf.parent / uri).resolve()
+            if not sidecar.is_file():
+                missing_bins.append(str(sidecar.relative_to(CONVERTED)))
+
+    if missing_bins:
+        preview = ", ".join(missing_bins[:10])
+        raise RuntimeError(
+            f"Missing glTF sidecar files after asset sync: {len(missing_bins)} "
+            f"(examples: {preview})"
+        )
 
     (CONVERTED / "asset_inventory.json").write_text(
         json.dumps(
@@ -167,6 +190,7 @@ def main() -> int:
         encoding="utf-8",
     )
     print(f"Indexed {len(inventory)} real source assets")
+    print("Verified glTF sidecar files (.bin/.mtl) are present")
     return 0
 
 
