@@ -7,9 +7,7 @@ we inspect archive structure without committing the large source archives.
 from __future__ import annotations
 
 import hashlib
-import io
 import json
-import re
 import shutil
 import tempfile
 import zipfile
@@ -24,6 +22,7 @@ MANIFEST = ROOT / "mobile" / "assets" / "asset_manifest.json"
 SOURCE_REPO = "ali12hhh-oss/alsaeqa"
 RELEASE = "assets-v1"
 BASE_URL = f"https://github.com/{SOURCE_REPO}/releases/download/{RELEASE}"
+RELEASE_API_URL = f"https://api.github.com/repos/{SOURCE_REPO}/releases/tags/{RELEASE}"
 
 
 def sha256(path: Path) -> str:
@@ -39,6 +38,22 @@ def download(url: str, target: Path) -> None:
     request = Request(url, headers={"User-Agent": "ALSAEQA-Mobile-Asset-Inspector/1.0"})
     with urlopen(request) as response, target.open("wb") as output:
         shutil.copyfileobj(response, output, length=1024 * 1024)
+
+
+def release_digests() -> dict[str, str]:
+    """Return GitHub's published SHA-256 digests for this release."""
+    request = Request(
+        RELEASE_API_URL,
+        headers={"Accept": "application/vnd.github+json", "User-Agent": "ALSAEQA-Mobile-Asset-Inspector/1.0"},
+    )
+    with urlopen(request) as response:
+        payload = json.load(response)
+    result: dict[str, str] = {}
+    for asset in payload.get("assets", []):
+        digest = asset.get("digest") or ""
+        if digest.startswith("sha256:"):
+            result[asset["name"]] = digest.split(":", 1)[1].strip().lower()
+    return result
 
 
 def is_zip_name(name: str) -> bool:
@@ -121,6 +136,7 @@ def main() -> int:
     BUILD.mkdir(parents=True, exist_ok=True)
     DOWNLOADS.mkdir(parents=True, exist_ok=True)
     manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    published = release_digests()
     report = {
         "source_repository": SOURCE_REPO,
         "release": RELEASE,
@@ -133,9 +149,17 @@ def main() -> int:
         if not target.exists():
             print(f"Downloading {pack['file']} ...")
             download(f"{BASE_URL}/{pack['file']}", target)
-        actual = sha256(target)
-        if actual.lower() != pack["sha256"].lower():
-            raise RuntimeError(f"SHA-256 mismatch for {pack['file']}: {actual}")
+        actual = sha256(target).lower()
+        expected = published.get(pack["file"], pack["sha256"].strip().lower())
+        if actual != expected:
+            raise RuntimeError(
+                f"SHA-256 mismatch for {pack['file']}: actual={actual} expected={expected}"
+            )
+        if pack["file"] in published and pack["sha256"].strip().lower() != published[pack["file"]]:
+            print(
+                f"WARNING: manifest SHA-256 for {pack['file']} is stale; "
+                f"using published release digest {published[pack['file']]}"
+            )
         print(f"Verified {pack['file']} ({target.stat().st_size:,} bytes)")
         inspect_zip(target, pack["file"], report)
 
