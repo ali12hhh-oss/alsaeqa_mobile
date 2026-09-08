@@ -1,7 +1,7 @@
-# ALSAEQA — Project Continuity / Canonical State
+# الصاعقة موبايل — Project Continuity / Canonical State
 
-Canonical repository: ali12hhh-oss/alsaeqa
-Project: الصاعقة / ALSAEQA
+Canonical repository: ali12hhh-oss/alsaeqa_mobile
+Project: الصاعقة موبايل / ALSAEQA Mobile
 Engine: Unreal Engine 5
 Primary target: Android
 Architecture: C++ gameplay foundation + Blueprint/Sequencer authored presentation.
