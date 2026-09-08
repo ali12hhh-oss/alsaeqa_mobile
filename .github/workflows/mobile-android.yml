@@ -66,8 +66,15 @@ jobs:
           blender_sha_url="https://download.blender.org/release/Blender4.5/blender-${BLENDER_VERSION}.sha256"
 
           curl -L --fail --retry 3 "$blender_url" -o "$blender_archive"
+          test -s "$blender_archive"
           curl -L --fail --retry 3 "$blender_sha_url" -o /tmp/blender.sha256
-          grep "blender-${BLENDER_VERSION}-linux-x64.tar.xz" /tmp/blender.sha256 | sha256sum -c -
+
+          expected_blender_name="blender-${BLENDER_VERSION}-linux-x64.tar.xz"
+          test -s /tmp/blender.sha256
+          grep -F "  ${expected_blender_name}" /tmp/blender.sha256 >/dev/null
+          expected_blender_sha="$(awk -v name="$expected_blender_name" '$2 == name {print $1; exit}' /tmp/blender.sha256)"
+          test -n "$expected_blender_sha"
+          printf '%s  %s\n' "$expected_blender_sha" "$blender_archive" | sha256sum -c -
 
           sudo rm -rf /opt/blender
           sudo mkdir -p /opt/blender
