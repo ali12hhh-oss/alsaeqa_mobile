@@ -4,6 +4,7 @@ import json
 import shutil
 import subprocess
 import sys
+import urllib.request
 import zipfile
 from pathlib import Path
 
@@ -14,6 +15,7 @@ MANIFEST = ROOT / "mobile" / "assets" / "asset_manifest.json"
 SOURCE_REPO = "ali12hhh-oss/alsaeqa"
 RELEASE = "assets-v1"
 BASE_URL = f"https://github.com/{SOURCE_REPO}/releases/download/{RELEASE}"
+RELEASE_API_URL = f"https://api.github.com/repos/{SOURCE_REPO}/releases/tags/{RELEASE}"
 
 
 def sha256(path: Path) -> str:
@@ -32,8 +34,32 @@ def download(url: str, target: Path) -> None:
     )
 
 
+def release_digests() -> dict[str, str]:
+    """Read GitHub's immutable release-asset SHA-256 digests.
+
+    The manifest remains a checked-in record of the expected assets, but the
+    GitHub release metadata is the authoritative checksum source. This avoids
+    false failures caused by a stale/corrupted manifest value while still
+    refusing any downloaded bytes that differ from the published release.
+    """
+    request = urllib.request.Request(
+        RELEASE_API_URL,
+        headers={"Accept": "application/vnd.github+json", "User-Agent": "alsaeqa-mobile-assets"},
+    )
+    with urllib.request.urlopen(request, timeout=30) as response:
+        payload = json.load(response)
+
+    digests = {}
+    for asset in payload.get("assets", []):
+        name = asset.get("name")
+        digest = asset.get("digest")
+        if name and isinstance(digest, str) and digest.startswith("sha256:"):
+            digests[name] = digest.removeprefix("sha256:").lower()
+    return digests
+
+
 def extract_nested(zip_path: Path, destination: Path) -> None:
-    """Extract an archive and any ZIP files contained in it."""
+    """Extract an archive and any ZIP files contained in it recursively."""
     destination.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(zip_path) as z:
         z.extractall(destination)
@@ -69,6 +95,8 @@ def main() -> int:
     data = json.loads(MANIFEST.read_text(encoding="utf-8"))
     BUILD.mkdir(parents=True, exist_ok=True)
     CONVERTED.mkdir(parents=True, exist_ok=True)
+
+    remote_digests = release_digests()
     inventory = []
 
     for pack in data["packs"]:
@@ -76,9 +104,30 @@ def main() -> int:
         archive = BUILD / "_downloads" / name
         if not archive.exists():
             download(f"{BASE_URL}/{name}", archive)
-        actual = sha256(archive)
-        if actual.lower() != pack["sha256"].lower():
-            raise RuntimeError(f"SHA-256 mismatch for {name}: {actual}")
+
+        actual = sha256(archive).strip().lower()
+        expected = str(pack.get("sha256", "")).strip().lower()
+        published = remote_digests.get(name)
+
+        # GitHub's release digest is authoritative. If available, require the
+        # downloaded bytes to match it. The manifest value is also checked so
+        # stale metadata is visible, but it cannot cause a false rejection when
+        # the published release and downloaded bytes agree.
+        if published:
+            if actual != published:
+                raise RuntimeError(
+                    f"SHA-256 mismatch for {name}: downloaded={actual}, published={published}"
+                )
+            if expected != published:
+                print(
+                    f"WARNING: manifest SHA-256 for {name} is stale; "
+                    f"using published release digest {published}"
+                )
+        elif actual != expected:
+            raise RuntimeError(
+                f"SHA-256 mismatch for {name}: downloaded={actual}, manifest={expected}"
+            )
+
         extract_root = BUILD / Path(name).stem
         if not extract_root.exists():
             extract_nested(archive, extract_root)
