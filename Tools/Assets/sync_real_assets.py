@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import hashlib
 import json
-import os
 import shutil
 import subprocess
 import sys
@@ -27,18 +26,30 @@ def sha256(path: Path) -> str:
 
 def download(url: str, target: Path) -> None:
     target.parent.mkdir(parents=True, exist_ok=True)
-    subprocess.run(["curl", "-L", "--fail", "--retry", "5", "--retry-all-errors", url, "-o", str(target)], check=True)
+    subprocess.run(
+        ["curl", "-L", "--fail", "--retry", "5", "--retry-all-errors", url, "-o", str(target)],
+        check=True,
+    )
 
 
 def extract_nested(zip_path: Path, destination: Path) -> None:
+    """Extract an archive and any ZIP files contained in it."""
+    destination.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(zip_path) as z:
         z.extractall(destination)
-    changed = True
-    while changed:
+
+    processed = set()
+    while True:
+        nested_archives = [
+            p for p in destination.rglob("*.zip")
+            if p.is_file() and p != zip_path and p not in processed
+        ]
+        if not nested_archives:
+            break
+
         changed = False
-        for nested in list(destination.rglob("*.zip")):
-            if nested == zip_path:
-                continue
+        for nested in nested_archives:
+            processed.add(nested)
             out = nested.with_suffix("")
             out.mkdir(parents=True, exist_ok=True)
             try:
@@ -47,7 +58,11 @@ def extract_nested(zip_path: Path, destination: Path) -> None:
                 nested.unlink()
                 changed = True
             except zipfile.BadZipFile:
-                pass
+                # Keep non-ZIP files that merely use a .zip suffix for inventory.
+                continue
+
+        if not changed:
+            break
 
 
 def main() -> int:
@@ -68,21 +83,40 @@ def main() -> int:
         if not extract_root.exists():
             extract_nested(archive, extract_root)
 
-    source_exts = {".fbx", ".obj", ".dae", ".gltf", ".glb", ".blend", ".png", ".jpg", ".jpeg", ".webp", ".tga", ".wav", ".ogg", ".mp3", ".json"}
+    source_exts = {
+        ".fbx", ".obj", ".dae", ".gltf", ".glb", ".blend",
+        ".png", ".jpg", ".jpeg", ".webp", ".tga",
+        ".wav", ".ogg", ".mp3", ".json",
+    }
     for src in sorted(BUILD.rglob("*")):
         if not src.is_file() or src.parent.name == "_downloads":
             continue
         if src.suffix.lower() not in source_exts:
             continue
         rel = src.relative_to(BUILD).as_posix()
-        item = {"source": rel, "extension": src.suffix.lower(), "size": src.stat().st_size, "sha256": sha256(src)}
+        item = {
+            "source": rel,
+            "extension": src.suffix.lower(),
+            "size": src.stat().st_size,
+            "sha256": sha256(src),
+        }
         inventory.append(item)
-        if src.suffix.lower() in {".gltf", ".glb", ".png", ".jpg", ".jpeg", ".webp", ".tga", ".wav", ".ogg", ".mp3", ".json"}:
+        if src.suffix.lower() in {
+            ".gltf", ".glb", ".png", ".jpg", ".jpeg", ".webp", ".tga",
+            ".wav", ".ogg", ".mp3", ".json",
+        }:
             dst = CONVERTED / rel
             dst.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(src, dst)
 
-    (CONVERTED / "asset_inventory.json").write_text(json.dumps({"source":"ALSAEQA releases", "release":RELEASE, "assets":inventory}, ensure_ascii=False, indent=2), encoding="utf-8")
+    (CONVERTED / "asset_inventory.json").write_text(
+        json.dumps(
+            {"source": "ALSAEQA releases", "release": RELEASE, "assets": inventory},
+            ensure_ascii=False,
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
     print(f"Indexed {len(inventory)} real source assets")
     return 0
 
