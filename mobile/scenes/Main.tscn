@@ -85,6 +85,20 @@ offset_right = 345.0
 offset_bottom = 680.0
 text = "تدحرج"
 
+[node name="Crouch" type="Button" parent="MobileHUD/MobileControls"]
+offset_left = 358.0
+offset_top = 610.0
+offset_right = 488.0
+offset_bottom = 680.0
+text = "انحناء"
+
+[node name="Listen" type="Button" parent="MobileHUD/MobileControls"]
+offset_left = 501.0
+offset_top = 610.0
+offset_right = 631.0
+offset_bottom = 680.0
+text = "استماع"
+
 [node name="Light" type="Button" parent="MobileHUD/MobileControls"]
 offset_left = 1430.0
 offset_top = 560.0
