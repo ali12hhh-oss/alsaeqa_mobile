@@ -6,7 +6,7 @@ extends Node3D
 
 const ROOT := "res://assets/converted"
 const ROLE_PATTERNS := {
-    "hero": ["hero", "character", "basecharacter"],
+    "hero": ["hero", "basecharacter", "character"],
     "worker": ["worker", "civilian", "villager", "farmer"],
     "guard": ["guard", "soldier", "warrior", "knight", "medieval"],
     "beast": ["beast", "mount", "horse", "creature", "monster", "dragon", "snake"],
@@ -47,18 +47,39 @@ func _find_glb_files(path: String) -> Array[String]:
     return result
 
 func _role_files(role: String, assets: Array[String]) -> Array[String]:
-    var patterns: Array = ROLE_PATTERNS.get(role, [])
     var matches: Array[String] = []
     for asset in assets:
-        var lower := asset.to_lower()
-        for pattern in patterns:
-            if lower.contains(pattern):
-                matches.append(asset)
-                break
+        if _matches_role(role, asset):
+            matches.append(asset)
+    matches.sort()
     return matches
 
+func _matches_role(role: String, asset: String) -> bool:
+    var lower := asset.to_lower()
+    var patterns: Array = ROLE_PATTERNS.get(role, [])
+    for pattern in patterns:
+        if lower.contains(pattern):
+            return true
+    return false
+
+func _hero_files(assets: Array[String]) -> Array[String]:
+    var exact: Array[String] = []
+    var broad: Array[String] = []
+    for asset in assets:
+        var lower := asset.to_lower()
+        if lower.contains("hero"):
+            exact.append(asset)
+        elif lower.contains("basecharacter"):
+            broad.append(asset)
+        elif lower.contains("character"):
+            broad.append(asset)
+    exact.sort()
+    broad.sort()
+    exact.append_array(broad)
+    return exact
+
 func _spawn_role_variants(role: String, assets: Array[String], count: int, origin: Vector3, target_height: float) -> void:
-    var candidates := _role_files(role, assets)
+    var candidates := _hero_files(assets) if role == "hero" else _role_files(role, assets)
     if candidates.is_empty():
         push_warning("No converted real assets matched role: %s" % role)
         return
@@ -78,6 +99,44 @@ func _spawn_role_variants(role: String, assets: Array[String], count: int, origi
         parent.add_child(instance)
         instance.position = Vector3.ZERO if role == "hero" else _role_position(role, i, count, origin)
         _normalize_height(instance, target_height)
+        if role == "hero":
+            _validate_hero_runtime(instance, path)
+
+func _validate_hero_runtime(instance: Node, source_path: String) -> void:
+    if _find_first_mesh(instance) == null:
+        push_error("Selected hero asset has no renderable mesh: %s" % source_path)
+        return
+    if _find_first_skeleton(instance) == null:
+        push_warning("Selected hero asset has no Skeleton3D yet: %s" % source_path)
+    if _find_first_animation_player(instance) == null:
+        push_warning("Selected hero asset has no AnimationPlayer yet: %s" % source_path)
+
+func _find_first_mesh(node: Node) -> MeshInstance3D:
+    for child in node.get_children():
+        if child is MeshInstance3D and (child as MeshInstance3D).mesh != null:
+            return child as MeshInstance3D
+        var nested := _find_first_mesh(child)
+        if nested != null:
+            return nested
+    return null
+
+func _find_first_skeleton(node: Node) -> Skeleton3D:
+    for child in node.get_children():
+        if child is Skeleton3D:
+            return child as Skeleton3D
+        var nested := _find_first_skeleton(child)
+        if nested != null:
+            return nested
+    return null
+
+func _find_first_animation_player(node: Node) -> AnimationPlayer:
+    for child in node.get_children():
+        if child is AnimationPlayer:
+            return child as AnimationPlayer
+        var nested := _find_first_animation_player(child)
+        if nested != null:
+            return nested
+    return null
 
 func _role_position(role: String, index: int, count: int, origin: Vector3) -> Vector3:
     if role == "worker":
