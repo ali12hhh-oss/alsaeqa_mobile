@@ -32,6 +32,12 @@ var _action_time_left := 0.0
 var _was_on_floor := true
 var _animation_warning_emitted := false
 var _current_animation := ""
+var _combat_cooldown := 0.0
+var _combat_window := 0.0
+var _combo_step := 0
+var _combo_reset_time := 0.0
+var _attack_active := false
+var _attack_heavy := false
 
 var hero_visual: Node3D
 var hero_skeleton: Skeleton3D
@@ -127,6 +133,11 @@ func _update_action_timers(delta: float) -> void:
     _roll_time_left = maxf(_roll_time_left - delta, 0.0)
     _landing_time_left = maxf(_landing_time_left - delta, 0.0)
     _action_time_left = maxf(_action_time_left - delta, 0.0)
+    _combat_cooldown = maxf(_combat_cooldown - delta, 0.0)
+    _combat_window = maxf(_combat_window - delta, 0.0)
+    _combo_reset_time = maxf(_combo_reset_time - delta, 0.0)
+    if _combo_reset_time <= 0.0:
+        _combo_step = 0
     if rolling and _roll_time_left <= 0.0:
         rolling = false
 
@@ -247,16 +258,44 @@ func toggle_listen() -> void:
         crouching = false
 
 func light_attack() -> void:
-    if rolling:
+    if rolling or _combat_cooldown > 0.0 or thunder_charging:
         return
-    _play_action_animation(["light_attack", "light", "attack_1", "attack1", "slash"], 0.55)
-    CinematicDirector.combat_impact(false)
+    _begin_attack(false)
 
 func heavy_attack() -> void:
-    if rolling:
+    if rolling or _combat_cooldown > 0.0 or thunder_charging:
         return
-    _play_action_animation(["heavy_attack", "heavy", "attack_2", "attack2", "power_attack"], 0.75)
-    CinematicDirector.combat_impact(true)
+    _begin_attack(true)
+
+func _begin_attack(heavy: bool) -> void:
+    if _combo_reset_time <= 0.0:
+        _combo_step = 0
+    _combo_step = (_combo_step + 1) if not heavy else 1
+    var tokens: Array[String]
+    if heavy:
+        tokens = ["heavy_attack", "heavy", "power_attack", "attack_2", "attack2"]
+    elif _combo_step >= 3:
+        tokens = ["light_attack_3", "attack_3", "attack3", "combo_3", "slash_3", "light_attack"]
+    elif _combo_step == 2:
+        tokens = ["light_attack_2", "attack_2", "attack2", "combo_2", "slash_2", "light_attack"]
+    else:
+        tokens = ["light_attack_1", "attack_1", "attack1", "combo_1", "slash", "light_attack"]
+    _attack_heavy = heavy
+    _attack_active = true
+    _combat_window = 0.18 if heavy else 0.12
+    _combat_cooldown = 0.62 if heavy else 0.38
+    _combo_reset_time = 0.9
+    _play_action_animation(tokens, 0.52 if heavy else 0.34)
+    CinematicDirector.combat_impact(heavy)
+
+func is_attack_active() -> bool:
+    return _attack_active and _combat_window > 0.0
+
+func attack_is_heavy() -> bool:
+    return _attack_heavy
+
+func end_attack_window() -> void:
+    _attack_active = false
 
 func start_thunder_charge() -> void:
     if rolling:
