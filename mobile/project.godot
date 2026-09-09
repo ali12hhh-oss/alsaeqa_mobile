@@ -1,0 +1,46 @@
+; ALSAEQA Mobile
+; Godot 4 Android-first conversion foundation.
+config_version=5
+
+[application]
+config/name="ALSAEQA Mobile"
+config/description="الصاعقة — cinematic third-person thunder adventure for Android"
+run/main_scene="res://scenes/Main.tscn"
+config/features=PackedStringArray("4.4", "GL Compatibility")
+
+[display]
+window/size/viewport_width=1920
+window/size/viewport_height=1080
+window/size/window_width_override=1280
+window/size/window_height_override=720
+window/stretch/mode="canvas_items"
+
+[rendering]
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+textures/default_filters/use_nearest_mipmap_filter=false
+
+[physics]
+common/enable_pause_aware_picking=true
+
+[input]
+move_forward={"deadzone":0.25,"events":[Object(InputEventKey,"physical_keycode":87)]}
+move_back={"deadzone":0.25,"events":[Object(InputEventKey,"physical_keycode":83)]}
+move_left={"deadzone":0.25,"events":[Object(InputEventKey,"physical_keycode":65)]}
+move_right={"deadzone":0.25,"events":[Object(InputEventKey,"physical_keycode":68)]}
+attack_light={"deadzone":0.25,"events":[Object(InputEventMouseButton,"button_index":1)]}
+attack_heavy={"deadzone":0.25,"events":[Object(InputEventMouseButton,"button_index":2)]}
+sprint={"deadzone":0.25,"events":[Object(InputEventKey,"physical_keycode":4194325)]}
+interact={"deadzone":0.25,"events":[Object(InputEventKey,"physical_keycode":69)]}
+roll={"deadzone":0.25,"events":[Object(InputEventKey,"physical_keycode":4194326)]}
+
+[android]
+package/unique_name="com.alsaeqa.mobile"
+package/name="ALSAEQA Mobile"
+version/code=1
+version/name="0.1.0"
+
+[autoload]
+GameState="*res://scripts/game_state.gd"
+StageRegistry="*res://scripts/stage_registry.gd"
+CinematicDirector="*res://scripts/cinematic_director.gd"
