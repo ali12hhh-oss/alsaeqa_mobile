@@ -27,6 +27,7 @@ func _ready() -> void:
     _spawn_role_variants("hero", assets, 1, Vector3.ZERO, 2.0)
     _spawn_role_variants("worker", assets, worker_count, Vector3(-10, 0, 4), 1.9)
     _spawn_role_variants("guard", assets, guard_count, Vector3.ZERO, 2.0)
+    _spawn_role_variants("beast", assets, 4, Vector3(18, 0, 8), 2.4)
     _spawn_role_variants("environment", assets, environment_count, Vector3.ZERO, 8.0)
     _report_role_coverage(assets)
 
@@ -88,7 +89,7 @@ func _spawn_role_variants(role: String, assets: Array[String], count: int, origi
         push_warning("No converted real assets matched role: %s" % role)
         _spawned_roles[role] = 0
         return
-    _spawned_roles[role] = min(count, candidates.size()) if role == "hero" else count
+    _spawned_roles[role] = min(count, candidates.size())
     for i in count:
         var path: String = candidates[i % candidates.size()]
         var packed := load(path) as PackedScene
@@ -160,6 +161,8 @@ func _role_position(role: String, index: int, count: int, origin: Vector3) -> Ve
     if role == "guard":
         var angle := TAU * float(index) / float(max(count, 1))
         return origin + Vector3(cos(angle) * 11.0, 0, sin(angle) * 11.0)
+    if role == "beast":
+        return origin + Vector3(float(index % 2) * 7.0, 0, float(index / 2) * 6.0)
     var row := index / 4
     var col := index % 4
     return origin + Vector3(float(col - 1) * 12.0, 0, float(row - 1) * 10.0)
