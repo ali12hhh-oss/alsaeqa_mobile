@@ -34,6 +34,8 @@ attack_heavy={"deadzone":0.25,"events":[Object(InputEventMouseButton,"button_ind
 sprint={"deadzone":0.25,"events":[Object(InputEventKey,"physical_keycode":4194325)]}
 interact={"deadzone":0.25,"events":[Object(InputEventKey,"physical_keycode":69)]}
 roll={"deadzone":0.25,"events":[Object(InputEventKey,"physical_keycode":4194326)]}
+crouch={"deadzone":0.25,"events":[Object(InputEventKey,"physical_keycode":67)]}
+listen={"deadzone":0.25,"events":[Object(InputEventKey,"physical_keycode":76)]}
 
 [android]
 package/unique_name="com.alsaeqa.mobile"
