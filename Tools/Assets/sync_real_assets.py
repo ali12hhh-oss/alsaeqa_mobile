@@ -28,44 +28,25 @@ def sha256(path: Path) -> str:
 
 def download(url: str, target: Path) -> None:
     target.parent.mkdir(parents=True, exist_ok=True)
-    subprocess.run(
-        ["curl", "-L", "--fail", "--retry", "5", "--retry-all-errors", url, "-o", str(target)],
-        check=True,
-    )
+    subprocess.run(["curl", "-L", "--fail", "--retry", "5", "--retry-all-errors", url, "-o", str(target)], check=True)
 
 
 def release_digests() -> dict[str, str]:
-    request = urllib.request.Request(
-        RELEASE_API_URL,
-        headers={"Accept": "application/vnd.github+json", "User-Agent": "alsaeqa-mobile-assets"},
-    )
+    request = urllib.request.Request(RELEASE_API_URL, headers={"Accept": "application/vnd.github+json", "User-Agent": "alsaeqa-mobile-assets"})
     with urllib.request.urlopen(request, timeout=30) as response:
         payload = json.load(response)
-
-    digests = {}
-    for asset in payload.get("assets", []):
-        name = asset.get("name")
-        digest = asset.get("digest")
-        if name and isinstance(digest, str) and digest.startswith("sha256:"):
-            digests[name] = digest.removeprefix("sha256:").lower()
-    return digests
+    return {a["name"]: a["digest"].removeprefix("sha256:").lower() for a in payload.get("assets", []) if a.get("name") and isinstance(a.get("digest"), str) and a["digest"].startswith("sha256:")}
 
 
 def extract_nested(zip_path: Path, destination: Path) -> None:
-    """Extract an archive and ZIP files contained at any depth."""
     destination.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(zip_path) as z:
         z.extractall(destination)
-
     processed = set()
     while True:
-        nested_archives = [
-            p for p in destination.rglob("*.zip")
-            if p.is_file() and p not in processed
-        ]
+        nested_archives = [p for p in destination.rglob("*.zip") if p.is_file() and p not in processed]
         if not nested_archives:
             break
-
         changed = False
         for nested in nested_archives:
             processed.add(nested)
@@ -78,84 +59,67 @@ def extract_nested(zip_path: Path, destination: Path) -> None:
                 changed = True
             except zipfile.BadZipFile:
                 continue
-
         if not changed:
             break
 
 
-# Files that can be referenced by a glTF/GLB or are otherwise required by
-# the original asset package. In particular, .bin is mandatory for many
-# Standard glTF files and must remain beside its .gltf file.
-source_exts = {
-    ".fbx", ".obj", ".dae", ".gltf", ".glb", ".blend",
-    ".bin", ".mtl",
-    ".png", ".jpg", ".jpeg", ".webp", ".tga",
-    ".wav", ".ogg", ".mp3", ".json",
-}
-runtime_copy_exts = {
-    ".gltf", ".glb", ".bin", ".mtl",
-    ".png", ".jpg", ".jpeg", ".webp", ".tga",
-    ".wav", ".ogg", ".mp3", ".json",
-}
+source_exts = {".fbx", ".obj", ".dae", ".gltf", ".glb", ".blend", ".bin", ".mtl", ".png", ".jpg", ".jpeg", ".webp", ".tga", ".wav", ".ogg", ".mp3", ".json"}
+runtime_copy_exts = {".gltf", ".glb", ".bin", ".mtl", ".png", ".jpg", ".jpeg", ".webp", ".tga", ".wav", ".ogg", ".mp3", ".json"}
+
+
+def classify(path: str) -> str:
+    value = path.lower()
+    rules = {
+        "monster_or_creature": ("monster", "dragon", "bee", "creature", "beast", "snake"),
+        "character": ("character", "hero", "woman", "female", "male", "man", "person", "worker", "civilian", "villager", "guard", "soldier", "warrior", "knight"),
+        "environment_ruins_caves": ("ruin", "cave", "dungeon", "wall", "rock", "cliff"),
+        "environment": ("environment", "nature", "tree", "grass", "village", "farm", "prop"),
+        "animation": ("animation", "anim", "walk", "run", "attack", "idle"),
+        "weapon": ("weapon", "sword", "axe", "spear", "bow", "chain"),
+        "audio": ("sound", "audio", "voice", "music"),
+        "texture_material": ("texture", "material", "normal", "roughness"),
+    }
+    for category, tokens in rules.items():
+        if any(token in value for token in tokens):
+            return category
+    return "other"
 
 
 def main() -> int:
     data = json.loads(MANIFEST.read_text(encoding="utf-8"))
     BUILD.mkdir(parents=True, exist_ok=True)
     CONVERTED.mkdir(parents=True, exist_ok=True)
-
     remote_digests = release_digests()
     inventory = []
+    category_counts: dict[str, int] = {}
 
     for pack in data["packs"]:
         name = pack["file"]
         archive = BUILD / "_downloads" / name
         if not archive.exists():
             download(f"{BASE_URL}/{name}", archive)
-
         actual = sha256(archive).strip().lower()
         expected = str(pack.get("sha256", "")).strip().lower()
         published = remote_digests.get(name)
-
         if published:
             if actual != published:
-                raise RuntimeError(
-                    f"SHA-256 mismatch for {name}: downloaded={actual}, published={published}"
-                )
+                raise RuntimeError(f"SHA-256 mismatch for {name}: downloaded={actual}, published={published}")
             if expected != published:
-                print(
-                    f"WARNING: manifest SHA-256 for {name} is stale; "
-                    f"using published release digest {published}"
-                )
+                print(f"WARNING: manifest SHA-256 for {name} is stale; using published release digest {published}")
         elif actual != expected:
-            raise RuntimeError(
-                f"SHA-256 mismatch for {name}: downloaded={actual}, manifest={expected}"
-            )
-
+            raise RuntimeError(f"SHA-256 mismatch for {name}: downloaded={actual}, manifest={expected}")
         extract_root = BUILD / Path(name).stem
         if not extract_root.exists():
             extract_nested(archive, extract_root)
 
     for src in sorted(BUILD.rglob("*")):
-        if not src.is_file() or "_downloads" in src.parts:
+        if not src.is_file() or "_downloads" in src.parts or src.suffix.lower() not in source_exts:
             continue
-        suffix = src.suffix.lower()
-        if suffix not in source_exts:
-            continue
-
         rel = src.relative_to(BUILD).as_posix()
-        item = {
-            "source": rel,
-            "extension": suffix,
-            "size": src.stat().st_size,
-            "sha256": sha256(src),
-        }
-        inventory.append(item)
-
-        # Preserve glTF sidecars (.bin/.mtl) in exactly the same relative
-        # location. This prevents Godot from importing a .gltf without its
-        # referenced binary buffer/material files.
-        if suffix in runtime_copy_exts:
+        category = classify(rel)
+        category_counts[category] = category_counts.get(category, 0) + 1
+        inventory.append({"source": rel, "extension": src.suffix.lower(), "size": src.stat().st_size, "sha256": sha256(src), "category": category})
+        if src.suffix.lower() in runtime_copy_exts:
             dst = CONVERTED / rel
             dst.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(src, dst)
@@ -173,24 +137,18 @@ def main() -> int:
             sidecar = (gltf.parent / uri).resolve()
             if not sidecar.is_file():
                 missing_bins.append(str(sidecar.relative_to(CONVERTED)))
-
     if missing_bins:
-        preview = ", ".join(missing_bins[:10])
-        raise RuntimeError(
-            f"Missing glTF sidecar files after asset sync: {len(missing_bins)} "
-            f"(examples: {preview})"
-        )
+        raise RuntimeError(f"Missing glTF sidecar files after asset sync: {len(missing_bins)} (examples: {', '.join(missing_bins[:10])})")
 
-    (CONVERTED / "asset_inventory.json").write_text(
-        json.dumps(
-            {"source": "ALSAEQA releases", "release": RELEASE, "assets": inventory},
-            ensure_ascii=False,
-            indent=2,
-        ),
-        encoding="utf-8",
-    )
+    required = ("character", "monster_or_creature", "environment", "environment_ruins_caves", "weapon", "animation")
+    missing_categories = [name for name in required if category_counts.get(name, 0) == 0]
+    if missing_categories:
+        raise RuntimeError(f"Real asset release is missing required logical categories: {', '.join(missing_categories)}")
+
+    (CONVERTED / "asset_inventory.json").write_text(json.dumps({"source": "ALSAEQA releases", "release": RELEASE, "assets": inventory, "category_counts": category_counts, "required_categories": list(required)}, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"Indexed {len(inventory)} real source assets")
     print("Verified glTF sidecar files (.bin/.mtl) are present")
+    print("Verified required real-asset categories: " + ", ".join(required))
     return 0
 
 
