@@ -1,20 +1,29 @@
 extends CharacterBody3D
 
-## Runtime hero base for the real ALSAEQA character.
-## The visual is supplied by real_asset_world.gd; this controller owns the
-## gameplay body and discovers the imported Skeleton3D/AnimationPlayer so the
-## next animation/combat stages can use the real rig without another hero node.
+## Canonical runtime hero controller.
+## The real imported character remains the visual child; this body owns
+## movement state, physics and mobile/desktop gameplay input.
 
-@export var walk_speed := 4.0
+@export var walk_speed := 3.8
+@export var jog_speed := 5.2
 @export var sprint_speed := 7.0
 @export var acceleration := 18.0
+@export var braking := 22.0
+@export var air_acceleration := 7.0
 @export var gravity := 18.0
+@export var max_fall_speed := 28.0
+@export var turn_speed := 11.0
 @export var roll_speed := 10.0
+@export var roll_duration := 0.45
+@export var crouch_speed := 2.4
 
 var sprinting := false
+var crouching := false
+var listening := false
 var rolling := false
 var thunder_charging := false
 var thunder_charge := 0.0
+var _roll_time_left := 0.0
 
 var hero_visual: Node3D
 var hero_skeleton: Skeleton3D
@@ -81,29 +90,122 @@ func _physics_process(delta: float) -> void:
     if not hero_visual_ready:
         bind_real_hero_visual()
 
-    if not is_on_floor():
-        velocity.y -= gravity * delta
-
-    var input_vector := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
-    var direction := Vector3(input_vector.x, 0.0, input_vector.y)
-    if direction.length() > 1.0:
-        direction = direction.normalized()
-
-    if not rolling:
-        var speed := sprint_speed if sprinting else walk_speed
-        var target := direction * speed
-        velocity.x = move_toward(velocity.x, target.x, acceleration * delta)
-        velocity.z = move_toward(velocity.z, target.z, acceleration * delta)
-        if direction.length_squared() > 0.01:
-            look_at(global_position + Vector3(direction.x, 0.0, direction.z), Vector3.UP)
-
+    _update_movement_state(delta)
+    _update_vertical_motion(delta)
     move_and_slide()
 
+func _update_movement_state(delta: float) -> void:
+    var input_vector := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+    var input_strength := minf(input_vector.length(), 1.0)
+
+    if Input.is_action_just_pressed("crouch") and not rolling:
+        crouching = not crouching
+        if crouching:
+            sprinting = false
+
+    if Input.is_action_just_pressed("listen") and not rolling:
+        listening = not listening
+        if listening:
+            sprinting = false
+
+    if not Input.is_action_pressed("sprint") and sprinting:
+        sprinting = false
+
+    if rolling:
+        _roll_time_left = maxf(_roll_time_left - delta, 0.0)
+        if _roll_time_left <= 0.0:
+            rolling = false
+    elif Input.is_action_just_pressed("roll") and is_on_floor() and input_strength > 0.05:
+        start_roll(input_vector)
+
+    if rolling:
+        return
+
+    var direction := _camera_relative_direction(input_vector)
+    var speed := walk_speed
+    if listening:
+        speed = crouch_speed
+    elif crouching:
+        speed = crouch_speed
+    elif sprinting and input_strength > 0.05:
+        speed = sprint_speed
+    elif input_strength > 0.05:
+        speed = jog_speed
+
+    var target_velocity := direction * speed * input_strength
+    var rate := acceleration if is_on_floor() else air_acceleration
+    if input_strength <= 0.05:
+        rate = braking if is_on_floor() else air_acceleration
+
+    velocity.x = move_toward(velocity.x, target_velocity.x, rate * delta)
+    velocity.z = move_toward(velocity.z, target_velocity.z, rate * delta)
+
+    if direction.length_squared() > 0.01:
+        var target_angle := atan2(-direction.x, -direction.z)
+        rotation.y = lerp_angle(rotation.y, target_angle, minf(turn_speed * delta, 1.0))
+
+func _camera_relative_direction(input_vector: Vector2) -> Vector3:
+    if input_vector.length_squared() <= 0.0001:
+        return Vector3.ZERO
+
+    var camera := get_viewport().get_camera_3d()
+    if camera == null:
+        return Vector3(input_vector.x, 0.0, input_vector.y).normalized()
+
+    var forward := -camera.global_transform.basis.z
+    var right := camera.global_transform.basis.x
+    forward.y = 0.0
+    right.y = 0.0
+    forward = forward.normalized()
+    right = right.normalized()
+
+    return (right * input_vector.x + forward * input_vector.y).normalized()
+
+func _update_vertical_motion(delta: float) -> void:
+    if is_on_floor():
+        if velocity.y < 0.0:
+            velocity.y = -0.5
+        return
+
+    velocity.y = maxf(velocity.y - gravity * delta, -max_fall_speed)
+
+func start_roll(input_vector: Vector2 = Vector2.ZERO) -> void:
+    if rolling or not is_on_floor():
+        return
+
+    var direction := _camera_relative_direction(input_vector)
+    if direction.length_squared() <= 0.01:
+        direction = -global_transform.basis.z
+        direction.y = 0.0
+        direction = direction.normalized()
+
+    rolling = true
+    sprinting = false
+    listening = false
+    velocity.x = direction.x * roll_speed
+    velocity.z = direction.z * roll_speed
+    _roll_time_left = roll_duration
+
 func start_sprint() -> void:
-    sprinting = true
+    if not crouching and not listening and not rolling:
+        sprinting = true
 
 func stop_sprint() -> void:
     sprinting = false
+
+func toggle_crouch() -> void:
+    if rolling:
+        return
+    crouching = not crouching
+    if crouching:
+        sprinting = false
+
+func toggle_listen() -> void:
+    if rolling:
+        return
+    listening = not listening
+    if listening:
+        sprinting = false
 
 func light_attack() -> void:
     CinematicDirector.combat_impact(false)
