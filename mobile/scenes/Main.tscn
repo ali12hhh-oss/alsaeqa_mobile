@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/player.gd" id="2_player"]
@@ -6,6 +6,10 @@
 [ext_resource type="Script" path="res://scripts/real_asset_world.gd" id="4_visual"]
 [ext_resource type="Script" path="res://scripts/mobile_camera.gd" id="5_camera"]
 [ext_resource type="Script" path="res://scripts/virtual_controls.gd" id="6_controls"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_hero"]
+radius = 0.38
+height = 1.9
 
 [node name="ALSAEQAMobile" type="Node3D"]
 script = ExtResource("1_main")
@@ -15,6 +19,10 @@ script = ExtResource("4_visual")
 
 [node name="Hero" type="CharacterBody3D" parent="."]
 script = ExtResource("2_player")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Hero"]
+position = Vector3(0, 0.95, 0)
+shape = SubResource("CapsuleShape3D_hero")
 
 [node name="Stage1" type="Node" parent="."]
 script = ExtResource("3_stage")
