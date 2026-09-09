@@ -101,6 +101,8 @@ func _spawn_role_variants(role: String, assets: Array[String], count: int, origi
         _normalize_height(instance, target_height)
         if role == "hero":
             _validate_hero_runtime(instance, path)
+            if parent.has_method("bind_real_hero_visual"):
+                parent.call_deferred("bind_real_hero_visual")
 
 func _validate_hero_runtime(instance: Node, source_path: String) -> void:
     if _find_first_mesh(instance) == null:
