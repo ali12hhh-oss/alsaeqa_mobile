@@ -15,6 +15,9 @@ const ROLE_PATTERNS := {
 
 @export var worker_count := 5
 @export var guard_count := 9
+@export var environment_count := 8
+
+var _spawned_roles: Dictionary = {}
 
 func _ready() -> void:
     var assets := _find_glb_files(ROOT)
@@ -24,7 +27,8 @@ func _ready() -> void:
     _spawn_role_variants("hero", assets, 1, Vector3.ZERO, 2.0)
     _spawn_role_variants("worker", assets, worker_count, Vector3(-10, 0, 4), 1.9)
     _spawn_role_variants("guard", assets, guard_count, Vector3.ZERO, 2.0)
-    _spawn_role_variants("environment", assets, 8, Vector3.ZERO, 8.0)
+    _spawn_role_variants("environment", assets, environment_count, Vector3.ZERO, 8.0)
+    _report_role_coverage(assets)
 
 func _find_glb_files(path: String) -> Array[String]:
     var result: Array[String] = []
@@ -82,7 +86,9 @@ func _spawn_role_variants(role: String, assets: Array[String], count: int, origi
     var candidates := _hero_files(assets) if role == "hero" else _role_files(role, assets)
     if candidates.is_empty():
         push_warning("No converted real assets matched role: %s" % role)
+        _spawned_roles[role] = 0
         return
+    _spawned_roles[role] = min(count, candidates.size()) if role == "hero" else count
     for i in count:
         var path: String = candidates[i % candidates.size()]
         var packed := load(path) as PackedScene
@@ -103,6 +109,14 @@ func _spawn_role_variants(role: String, assets: Array[String], count: int, origi
             _validate_hero_runtime(instance, path)
             if parent.has_method("bind_real_hero_visual"):
                 parent.call_deferred("bind_real_hero_visual")
+
+func _report_role_coverage(assets: Array[String]) -> void:
+    for role in ROLE_PATTERNS.keys():
+        var matches := _hero_files(assets) if role == "hero" else _role_files(role, assets)
+        if matches.is_empty():
+            push_warning("Real asset coverage missing for logical role: %s" % role)
+        else:
+            print("ALSAEQA real asset coverage | %s: %d source-derived GLB candidates" % [role, matches.size()])
 
 func _validate_hero_runtime(instance: Node, source_path: String) -> void:
     if _find_first_mesh(instance) == null:
