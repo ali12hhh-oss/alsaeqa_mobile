@@ -22,9 +22,12 @@ var hero_animation_player: AnimationPlayer
 var hero_visual_ready := false
 
 func _ready() -> void:
-    _bind_real_hero_visual()
+    bind_real_hero_visual()
 
-func _bind_real_hero_visual() -> void:
+## Called by the asset bridge after the real hero scene is instantiated.
+## Main.tscn keeps one canonical Hero gameplay body; the imported visual is
+## attached to that body at runtime, so binding must happen after attachment.
+func bind_real_hero_visual() -> void:
     hero_visual = null
     hero_skeleton = null
     hero_animation_player = null
@@ -33,7 +36,7 @@ func _bind_real_hero_visual() -> void:
     for child in get_children():
         if child is Node3D:
             var candidate := child as Node3D
-            if candidate.name.begins_with("hero_real_") or candidate.name.begins_with("Hero_Real_"):
+            if candidate.name.to_lower().begins_with("hero_real_"):
                 hero_visual = candidate
                 break
 
@@ -75,6 +78,9 @@ func _has_real_visual_mesh(node: Node) -> bool:
     return false
 
 func _physics_process(delta: float) -> void:
+    if not hero_visual_ready:
+        bind_real_hero_visual()
+
     if not is_on_floor():
         velocity.y -= gravity * delta
 
