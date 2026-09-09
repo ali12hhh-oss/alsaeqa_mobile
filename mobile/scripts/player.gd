@@ -3,6 +3,8 @@ extends CharacterBody3D
 ## Canonical runtime hero controller.
 ## The real imported character remains the visual child; this body owns
 ## movement state, physics and mobile/desktop gameplay input.
+## Animation is driven from the real AnimationPlayer exposed by the imported
+## hero asset; no duplicate animation asset is generated here.
 
 @export var walk_speed := 3.8
 @export var jog_speed := 5.2
@@ -16,6 +18,7 @@ extends CharacterBody3D
 @export var roll_speed := 10.0
 @export var roll_duration := 0.45
 @export var crouch_speed := 2.4
+@export var animation_blend := 0.12
 
 var sprinting := false
 var crouching := false
@@ -24,14 +27,21 @@ var rolling := false
 var thunder_charging := false
 var thunder_charge := 0.0
 var _roll_time_left := 0.0
+var _landing_time_left := 0.0
+var _action_time_left := 0.0
+var _was_on_floor := true
+var _animation_warning_emitted := false
+var _current_animation := ""
 
 var hero_visual: Node3D
 var hero_skeleton: Skeleton3D
 var hero_animation_player: AnimationPlayer
 var hero_visual_ready := false
+var _animation_names: Array[String] = []
 
 func _ready() -> void:
     bind_real_hero_visual()
+    _was_on_floor = is_on_floor()
 
 ## Called by the asset bridge after the real hero scene is instantiated.
 ## Main.tscn keeps one canonical Hero gameplay body; the imported visual is
@@ -41,6 +51,7 @@ func bind_real_hero_visual() -> void:
     hero_skeleton = null
     hero_animation_player = null
     hero_visual_ready = false
+    _animation_names.clear()
 
     for child in get_children():
         if child is Node3D:
@@ -56,9 +67,13 @@ func bind_real_hero_visual() -> void:
     hero_skeleton = _find_first_skeleton(hero_visual)
     hero_animation_player = _find_first_animation_player(hero_visual)
     hero_visual_ready = _has_real_visual_mesh(hero_visual)
+    _cache_animation_names()
 
     if not hero_visual_ready:
         push_error("Hero visual is attached but contains no renderable real mesh")
+    if hero_animation_player == null and not _animation_warning_emitted:
+        push_warning("Real hero visual has no AnimationPlayer; movement remains playable but animation is unavailable")
+        _animation_warning_emitted = true
 
 func _find_first_skeleton(node: Node) -> Skeleton3D:
     for child in node.get_children():
@@ -86,46 +101,63 @@ func _has_real_visual_mesh(node: Node) -> bool:
             return true
     return false
 
+func _cache_animation_names() -> void:
+    _animation_names.clear()
+    if hero_animation_player == null:
+        return
+    for animation_name in hero_animation_player.get_animation_list():
+        if animation_name != "RESET":
+            _animation_names.append(str(animation_name))
+    _animation_names.sort()
+
 func _physics_process(delta: float) -> void:
     if not hero_visual_ready:
         bind_real_hero_visual()
 
+    var was_on_floor := _was_on_floor
+    _update_action_timers(delta)
     _update_movement_state(delta)
     _update_vertical_motion(delta)
     move_and_slide()
+    _update_landing_state(was_on_floor)
+    _update_animation_state()
+    _was_on_floor = is_on_floor()
+
+func _update_action_timers(delta: float) -> void:
+    _roll_time_left = maxf(_roll_time_left - delta, 0.0)
+    _landing_time_left = maxf(_landing_time_left - delta, 0.0)
+    _action_time_left = maxf(_action_time_left - delta, 0.0)
+    if rolling and _roll_time_left <= 0.0:
+        rolling = false
 
 func _update_movement_state(delta: float) -> void:
     var input_vector := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
     var input_strength := minf(input_vector.length(), 1.0)
 
     if Input.is_action_just_pressed("crouch") and not rolling:
-        crouching = not crouching
-        if crouching:
-            sprinting = false
+        toggle_crouch()
 
     if Input.is_action_just_pressed("listen") and not rolling:
-        listening = not listening
-        if listening:
-            sprinting = false
+        toggle_listen()
 
     if not Input.is_action_pressed("sprint") and sprinting:
         sprinting = false
 
     if rolling:
-        _roll_time_left = maxf(_roll_time_left - delta, 0.0)
-        if _roll_time_left <= 0.0:
-            rolling = false
-    elif Input.is_action_just_pressed("roll") and is_on_floor() and input_strength > 0.05:
-        start_roll(input_vector)
+        return
 
-    if rolling:
+    if _action_time_left > 0.0:
+        velocity.x = move_toward(velocity.x, 0.0, braking * delta)
+        velocity.z = move_toward(velocity.z, 0.0, braking * delta)
+        return
+
+    if Input.is_action_just_pressed("roll") and is_on_floor() and input_strength > 0.05:
+        start_roll(input_vector)
         return
 
     var direction := _camera_relative_direction(input_vector)
     var speed := walk_speed
-    if listening:
-        speed = crouch_speed
-    elif crouching:
+    if listening or crouching:
         speed = crouch_speed
     elif sprinting and input_strength > 0.05:
         speed = sprint_speed
@@ -169,6 +201,10 @@ func _update_vertical_motion(delta: float) -> void:
 
     velocity.y = maxf(velocity.y - gravity * delta, -max_fall_speed)
 
+func _update_landing_state(was_on_floor: bool) -> void:
+    if not was_on_floor and is_on_floor():
+        _landing_time_left = 0.28
+
 func start_roll(input_vector: Vector2 = Vector2.ZERO) -> void:
     if rolling or not is_on_floor():
         return
@@ -181,6 +217,7 @@ func start_roll(input_vector: Vector2 = Vector2.ZERO) -> void:
 
     rolling = true
     sprinting = false
+    crouching = false
     listening = false
     velocity.x = direction.x * roll_speed
     velocity.z = direction.z * roll_speed
@@ -199,6 +236,7 @@ func toggle_crouch() -> void:
     crouching = not crouching
     if crouching:
         sprinting = false
+        listening = false
 
 func toggle_listen() -> void:
     if rolling:
@@ -206,16 +244,26 @@ func toggle_listen() -> void:
     listening = not listening
     if listening:
         sprinting = false
+        crouching = false
 
 func light_attack() -> void:
+    if rolling:
+        return
+    _play_action_animation(["light_attack", "light", "attack_1", "attack1", "slash"], 0.55)
     CinematicDirector.combat_impact(false)
 
 func heavy_attack() -> void:
+    if rolling:
+        return
+    _play_action_animation(["heavy_attack", "heavy", "attack_2", "attack2", "power_attack"], 0.75)
     CinematicDirector.combat_impact(true)
 
 func start_thunder_charge() -> void:
+    if rolling:
+        return
     thunder_charging = true
     thunder_charge = 0.0
+    _play_action_animation(["thunder_charge", "charge", "power_charge"], 0.2)
 
 func release_thunder() -> void:
     if not thunder_charging:
@@ -223,6 +271,7 @@ func release_thunder() -> void:
     thunder_charging = false
     var ratio: float = clampf(thunder_charge, 0.0, 1.0)
     GameState.thunder_charge = ratio
+    _play_action_animation(["thunder_release", "thunder_attack", "thunder", "release"], 0.7)
     CinematicDirector.thunder_impact(ratio)
     thunder_charge = 0.0
 
@@ -233,3 +282,83 @@ func cancel_thunder() -> void:
 func _process(delta: float) -> void:
     if thunder_charging:
         thunder_charge = min(thunder_charge + delta * 0.55, 1.0)
+
+func _update_animation_state() -> void:
+    if hero_animation_player == null or _animation_names.is_empty():
+        return
+    if _action_time_left > 0.0:
+        return
+    if thunder_charging:
+        _play_best_animation(["thunder_charge", "charge", "power_charge"], true)
+        return
+    if rolling:
+        _play_best_animation(["roll", "dodge", "evade"], true)
+        return
+    if _landing_time_left > 0.0:
+        _play_best_animation(["landing", "land"], false)
+        return
+    if not is_on_floor():
+        if velocity.y < -1.5:
+            _play_best_animation(["fall", "airborne", "falling"], true)
+        else:
+            _play_best_animation(["jump", "airborne", "falling"], true)
+        return
+    var horizontal_speed := Vector2(velocity.x, velocity.z).length()
+    if horizontal_speed < 0.15:
+        if listening:
+            _play_best_animation(["listen", "listening", "stealth"], true)
+        elif crouching:
+            _play_best_animation(["crouch_idle", "crouch", "idle_crouch"], true)
+        else:
+            _play_best_animation(["idle", "breathing", "stand"], true)
+    elif listening or crouching:
+        _play_best_animation(["crouch_walk", "crouch", "stealth_walk", "walk"], true)
+    elif sprinting:
+        _play_best_animation(["sprint", "run", "jog"], true)
+    elif horizontal_speed < (walk_speed + jog_speed) * 0.5:
+        _play_best_animation(["walk", "locomotion"], true)
+    else:
+        _play_best_animation(["jog", "run", "locomotion"], true)
+
+func _play_action_animation(tokens: Array[String], lock_time: float) -> void:
+    var animation_name := _find_animation_name(tokens)
+    if animation_name.is_empty():
+        return
+    _action_time_left = lock_time
+    _play_animation(animation_name, false)
+
+func _play_best_animation(tokens: Array[String], looping: bool) -> void:
+    var animation_name := _find_animation_name(tokens)
+    if animation_name.is_empty():
+        return
+    _play_animation(animation_name, looping)
+
+func _find_animation_name(tokens: Array[String]) -> String:
+    if _animation_names.is_empty():
+        return ""
+    var normalized_tokens: Array[String] = []
+    for token in tokens:
+        normalized_tokens.append(str(token).to_lower().replace(" ", "_").replace("-", "_"))
+
+    for animation_name in _animation_names:
+        var normalized := animation_name.to_lower().replace(" ", "_").replace("-", "_")
+        for token in normalized_tokens:
+            if normalized == token or normalized.ends_with("/" + token) or normalized.ends_with("|" + token):
+                return animation_name
+    for animation_name in _animation_names:
+        var normalized := animation_name.to_lower().replace(" ", "_").replace("-", "_")
+        for token in normalized_tokens:
+            if normalized.contains(token):
+                return animation_name
+    return ""
+
+func _play_animation(animation_name: String, looping: bool) -> void:
+    if hero_animation_player == null or not hero_animation_player.has_animation(animation_name):
+        return
+    if _current_animation == animation_name and hero_animation_player.is_playing():
+        return
+    hero_animation_player.play(animation_name, animation_blend)
+    var animation := hero_animation_player.get_animation(animation_name)
+    if animation != null:
+        animation.loop_mode = Animation.LOOP_LINEAR if looping else Animation.LOOP_NONE
+    _current_animation = animation_name
