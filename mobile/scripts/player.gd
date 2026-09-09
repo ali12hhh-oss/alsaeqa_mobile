@@ -38,6 +38,10 @@ var _combo_step := 0
 var _combo_reset_time := 0.0
 var _attack_active := false
 var _attack_heavy := false
+var _attack_targets: Array[Node] = []
+@export var attack_range := 2.4
+@export var light_damage := 18.0
+@export var heavy_damage := 42.0
 
 var hero_visual: Node3D
 var hero_skeleton: Skeleton3D
@@ -135,6 +139,8 @@ func _update_action_timers(delta: float) -> void:
     _action_time_left = maxf(_action_time_left - delta, 0.0)
     _combat_cooldown = maxf(_combat_cooldown - delta, 0.0)
     _combat_window = maxf(_combat_window - delta, 0.0)
+    if _combat_window <= 0.0:
+        _attack_active = false
     _combo_reset_time = maxf(_combo_reset_time - delta, 0.0)
     if _combo_reset_time <= 0.0:
         _combo_step = 0
@@ -287,6 +293,32 @@ func _begin_attack(heavy: bool) -> void:
     _combo_reset_time = 0.9
     _play_action_animation(tokens, 0.52 if heavy else 0.34)
     CinematicDirector.combat_impact(heavy)
+    _resolve_attack_hits()
+
+func _resolve_attack_hits() -> void:
+    _attack_targets.clear()
+    var space := get_world_3d().direct_space_state
+    var forward := -global_transform.basis.z
+    forward.y = 0.0
+    forward = forward.normalized()
+    var center := global_position + Vector3.UP * 1.0 + forward * (attack_range * 0.55)
+    var shape := SphereShape3D.new()
+    shape.radius = attack_range
+    var query := PhysicsShapeQueryParameters3D.new()
+    query.shape = shape
+    query.transform = Transform3D(Basis.IDENTITY, center)
+    query.exclude = [self]
+    query.collide_with_areas = true
+    query.collide_with_bodies = true
+    var hits := space.intersect_shape(query, 24)
+    var damage := heavy_damage if _attack_heavy else light_damage
+    for hit in hits:
+        var target = hit.get("collider")
+        if target == null or _attack_targets.has(target):
+            continue
+        if target.has_method("receive_damage"):
+            target.receive_damage(damage, global_position, _attack_heavy)
+            _attack_targets.append(target)
 
 func is_attack_active() -> bool:
     return _attack_active and _combat_window > 0.0
