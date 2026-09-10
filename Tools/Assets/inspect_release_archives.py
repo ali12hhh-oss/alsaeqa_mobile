@@ -8,8 +8,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import shutil
 import tempfile
+import urllib.error
 import zipfile
 from collections import Counter
 from pathlib import Path
@@ -42,12 +44,27 @@ def download(url: str, target: Path) -> None:
 
 def release_digests() -> dict[str, str]:
     """Return GitHub's published SHA-256 digests for this release."""
-    request = Request(
-        RELEASE_API_URL,
-        headers={"Accept": "application/vnd.github+json", "User-Agent": "ALSAEQA-Mobile-Asset-Inspector/1.0"},
-    )
-    with urlopen(request) as response:
-        payload = json.load(response)
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "User-Agent": "ALSAEQA-Mobile-Asset-Inspector/1.0",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    request = Request(RELEASE_API_URL, headers=headers)
+    try:
+        with urlopen(request, timeout=30) as response:
+            payload = json.load(response)
+    except urllib.error.HTTPError as exc:
+        if exc.code in (403, 429):
+            print(f"WARNING: GitHub release API rate-limited (HTTP {exc.code}); using manifest SHA-256 values")
+            return {}
+        raise
+    except urllib.error.URLError as exc:
+        print(f"WARNING: GitHub release API unavailable ({exc.reason}); using manifest SHA-256 values")
+        return {}
+
     result: dict[str, str] = {}
     for asset in payload.get("assets", []):
         digest = asset.get("digest") or ""
@@ -61,7 +78,6 @@ def is_zip_name(name: str) -> bool:
 
 
 def safe_member_name(name: str) -> bool:
-    # Inspection must not extract anything, but flag unsafe paths explicitly.
     normalized = name.replace("\\", "/")
     parts = [p for p in normalized.split("/") if p]
     return not normalized.startswith("/") and ".." not in parts
@@ -116,9 +132,6 @@ def inspect_zip(path: Path, root_label: str, report: dict, depth: int = 0) -> No
                     "compressed_bytes": item.compress_size,
                     "uncompressed_bytes": item.file_size,
                 })
-                # Recursively inspect the nested archive without extracting the
-                # complete parent archive to disk. Streaming to a temp file keeps
-                # memory bounded even for large nested archives.
                 with archive.open(item, "r") as source, tempfile.NamedTemporaryFile(suffix=".zip") as tmp:
                     shutil.copyfileobj(source, tmp, length=1024 * 1024)
                     tmp.flush()
