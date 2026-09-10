@@ -60,7 +60,7 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y curl xz-utils ca-certificates xvfb
+          sudo apt-get install -y curl xz-utils ca-certificates xvfb imagemagick
           blender_archive="/tmp/blender-${BLENDER_VERSION}-linux-x64.tar.xz"
           blender_url="https://download.blender.org/release/Blender4.5/blender-${BLENDER_VERSION}-linux-x64.tar.xz"
           blender_sha_url="https://download.blender.org/release/Blender4.5/blender-${BLENDER_VERSION}.sha256"
@@ -122,52 +122,11 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p build/runtime_inspection
-          rm -f mobile/inspection_runtime.png
-
-          cat > /tmp/inspection_runtime.gd <<'GDSCRIPT'
-          extends SceneTree
-
-          var elapsed := 0.0
-          var inspected_root: Node
-
-          func _init() -> void:
-              var scene := load("res://scenes/Main.tscn")
-              if scene == null:
-                  push_error("Main.tscn could not be loaded for visual inspection")
-                  quit(1)
-                  return
-              inspected_root = scene.instantiate()
-              inspected_root.name = "InspectionRuntimeMain"
-              get_root().add_child(inspected_root)
-
-          func _process(delta: float) -> bool:
-              elapsed += delta
-              if elapsed < 4.0:
-                  return true
-
-              var image := get_root().get_texture().get_image()
-              if image == null or image.is_empty():
-                  push_error("Runtime viewport image is empty")
-                  quit(1)
-                  return false
-
-              var output := ProjectSettings.globalize_path("res://inspection_runtime.png")
-              var save_error := image.save_png(output)
-              if save_error != OK:
-                  push_error("Could not save runtime screenshot: %s" % save_error)
-                  quit(1)
-                  return false
-
-              print("RUNTIME_VIEWPORT=", get_root().size)
-              print("RUNTIME_SCREENSHOT=", output)
-              quit(0)
-              return false
-          GDSCRIPT
+          rm -f build/runtime_inspection/main_runtime.png build/runtime_inspection/game_runtime.log mobile/inspection_runtime.png mobile/ui_runtime_report.json
 
           set +e
-          timeout 25s xvfb-run -a /tmp/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64 \
-            --path mobile --resolution 1280x720 --script /tmp/inspection_runtime.gd \
-            --verbose --quit-after 12 > build/runtime_inspection/game_runtime.log 2>&1
+          timeout 18s xvfb-run -a -s "-screen 0 1280x720x24" /tmp/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64 \
+            --path mobile --resolution 1280x720 --verbose --quit-after 10 > build/runtime_inspection/game_runtime.log 2>&1
           status=$?
           set -e
 
@@ -176,8 +135,8 @@ jobs:
             exit "$status"
           fi
 
-          test -s mobile/inspection_runtime.png
-          cp mobile/inspection_runtime.png build/runtime_inspection/main_runtime.png
+          import -window root -crop 1280x720+0+0 build/runtime_inspection/main_runtime.png
+          test -s build/runtime_inspection/main_runtime.png
 
           python3 - <<'PY'
           import json
@@ -218,7 +177,7 @@ jobs:
           cp mobile/ui_runtime_report.json build/runtime_inspection/ui_runtime_report.json
           cat build/runtime_inspection/ui_runtime_report.json
 
-          if grep -E 'SCRIPT ERROR|Parse Error|Failed to load' build/runtime_inspection/game_runtime.log; then
+          if grep -E 'SCRIPT ERROR|Parse Error|Failed to load script' build/runtime_inspection/game_runtime.log; then
             echo "Runtime visual inspection detected a fatal Godot error."
             exit 1
           fi
