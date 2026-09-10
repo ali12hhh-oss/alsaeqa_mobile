@@ -11,12 +11,12 @@ const ROLE_PATTERNS := {
     "worker": ["worker", "civilian", "villager", "farmer"],
     "guard": ["guard", "soldier", "warrior", "knight"],
     "beast": ["beast", "mount", "horse", "creature", "monster", "dragon", "snake"],
-    "environment": ["ruin", "dungeon", "prison", "cave", "village", "farm", "wall", "nature", "building", "house", "tree", "rock"]
+    "environment": ["ruin", "dungeon", "prison", "cave", "mine", "wall", "rock", "cliff", "floor", "arch", "village", "farm", "nature", "building", "house", "tree"]
 }
 
 const ENVIRONMENT_PRIORITY := [
-    "house", "building", "tower", "gate", "wall", "roof", "floor", "road", "path",
-    "tree", "rock", "cliff", "arch", "well", "fence", "barrel", "crate", "mine", "cave", "ruin"
+    "mine", "cave", "dungeon", "prison", "rock", "cliff", "wall", "floor", "arch", "ruin",
+    "gate", "building", "house", "roof", "road", "path", "tree", "well", "fence", "barrel", "crate"
 ]
 
 @export var worker_count := 5
@@ -32,7 +32,6 @@ func _ready() -> void:
     if assets.is_empty():
         push_error("ALSAEQA real asset library is missing from the mobile build")
         return
-
     _spawn_hero(assets)
     _spawn_workers(assets)
     _spawn_guards(assets)
@@ -108,7 +107,6 @@ func _worker_files(assets: Array[String]) -> Array[String]:
     explicit.sort()
     if explicit.size() >= worker_count:
         return explicit
-
     var hero_candidates := _hero_files(assets)
     var fallback: Array[String] = []
     for asset in _character_files(assets):
@@ -160,11 +158,13 @@ func _environment_files(assets: Array[String]) -> Array[String]:
             if lower.contains(token):
                 score += 100 - i
         if lower.contains("medieval village"):
-            score += 18
+            score += 8
         if lower.contains("stylized nature"):
-            score += 14
+            score += 6
         if lower.contains("ultimate modular ruins"):
-            score += 12
+            score += 16
+        if lower.contains("updated modular dungeon"):
+            score += 24
         if score > 0:
             scored.append([score, asset])
     scored.sort_custom(func(a, b):
@@ -183,12 +183,10 @@ func _spawn_hero(assets: Array[String]) -> void:
     if candidates.is_empty():
         push_error("No real humanoid hero candidates were found")
         return
-
     var parent := get_parent().get_node_or_null("Hero")
     if parent == null:
         push_error("Canonical Hero gameplay body is missing")
         return
-
     var selected := ""
     var selected_instance: Node = null
     for path in candidates:
@@ -205,28 +203,24 @@ func _spawn_hero(assets: Array[String]) -> void:
         selected = path
         selected_instance = instance
         break
-
     if selected_instance == null:
         push_error("No usable real humanoid hero mesh/skeleton was found")
         return
-
-    _attach_animation_driver(parent)
+    _attach_animation_driver(parent, assets)
     _validate_hero_runtime(selected_instance, selected)
     parent.call_deferred("bind_real_hero_visual")
     _spawned_roles["hero"] = 1
     print("ALSAEQA hero selected: %s" % selected)
 
-func _attach_animation_driver(hero_parent: Node) -> void:
+func _attach_animation_driver(hero_parent: Node, assets: Array[String]) -> void:
     if _animation_driver_attached:
         return
-    var assets := _find_glb_files(ROOT)
     var candidates: Array[String] = []
     for asset in assets:
         var lower := asset.to_lower()
         if lower.contains("universal animation library"):
             candidates.append(asset)
     candidates.sort()
-
     for path in candidates:
         var packed := load(path) as PackedScene
         if packed == null:
@@ -245,7 +239,6 @@ func _attach_animation_driver(hero_parent: Node) -> void:
         _animation_driver_attached = true
         print("ALSAEQA hero animation driver selected: %s" % path)
         return
-
     push_warning("No real Universal Animation Library scene with Skeleton3D + AnimationPlayer was found")
 
 func _spawn_workers(assets: Array[String]) -> void:
@@ -286,7 +279,6 @@ func _spawn_environment(assets: Array[String]) -> void:
         push_error("No usable real environment candidates were found")
         _spawned_roles["environment"] = 0
         return
-
     var placements := [
         Vector3(-10, 0, -14), Vector3(10, 0, -14), Vector3(-18, 0, -5), Vector3(18, 0, -5),
         Vector3(-16, 0, 8), Vector3(16, 0, 8), Vector3(-9, 0, 15), Vector3(9, 0, 15),
