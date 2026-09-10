@@ -122,11 +122,17 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p build/runtime_inspection
-          rm -f build/runtime_inspection/main_runtime.png build/runtime_inspection/game_runtime.log mobile/inspection_runtime.png mobile/ui_runtime_report.json
+          rm -f build/runtime_inspection/main_runtime.png build/runtime_inspection/game_runtime.log build/runtime_inspection/ui_runtime_report.json
 
           set +e
-          timeout 18s xvfb-run -a -s "-screen 0 1280x720x24" /tmp/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64 \
-            --path mobile --resolution 1280x720 --verbose --quit-after 10 > build/runtime_inspection/game_runtime.log 2>&1
+          timeout 20s xvfb-run -a -s "-screen 0 1280x720x24" bash -lc '
+            set -e
+            /tmp/godot/Godot_v'"$GODOT_VERSION"'-stable_linux.x86_64 --path mobile --resolution 1280x720 --verbose --quit-after 10 > build/runtime_inspection/game_runtime.log 2>&1 &
+            godot_pid=$!
+            sleep 5
+            import -window root -crop 1280x720+0+0 build/runtime_inspection/main_runtime.png
+            wait "$godot_pid"
+          '
           status=$?
           set -e
 
@@ -135,46 +141,52 @@ jobs:
             exit "$status"
           fi
 
-          import -window root -crop 1280x720+0+0 build/runtime_inspection/main_runtime.png
           test -s build/runtime_inspection/main_runtime.png
 
           python3 - <<'PY'
           import json
+          import re
           from pathlib import Path
-          script = r'''extends SceneTree
-          var total := 0
-          var tiny := 0
-          var max_w := 0.0
-          var max_h := 0.0
-          func _init():
-              var scene := load("res://scenes/Main.tscn")
-              if scene == null:
-                  quit(1)
+
+          text = Path('mobile/scenes/Main.tscn').read_text(encoding='utf-8')
+          controls = 0
+          tiny = 0
+          max_w = 0.0
+          max_h = 0.0
+          current_type = None
+          left = top = right = bottom = None
+          def flush():
+              global controls, tiny, max_w, max_h, current_type, left, top, right, bottom
+              if current_type not in {'Control', 'Button', 'Panel', 'Label'}:
                   return
-              var root := scene.instantiate()
-              get_root().add_child(root)
-              _walk(root)
-              var out := ProjectSettings.globalize_path("res://ui_runtime_report.json")
-              FileAccess.open(out, FileAccess.WRITE).store_string(JSON.stringify({"controls": total, "tiny_controls": tiny, "max_control_width": max_w, "max_control_height": max_h}))
-              quit(0)
-          func _walk(node: Node):
-              if node is Control:
-                  total += 1
-                  var size := (node as Control).size
-                  max_w = max(max_w, size.x)
-                  max_h = max(max_h, size.y)
-                  if size.x < 44.0 or size.y < 44.0:
+              controls += 1
+              if None not in (left, top, right, bottom):
+                  w = abs(right - left)
+                  h = abs(bottom - top)
+                  max_w = max(max_w, w)
+                  max_h = max(max_h, h)
+                  if w < 44 or h < 44:
                       tiny += 1
-              for child in node.get_children():
-                  _walk(child)
-          '''
-          Path('/tmp/inspect_ui.gd').write_text(script)
+          for line in text.splitlines():
+              m = re.match(r'\[node name="[^"]+" type="([^"]+)"', line)
+              if m:
+                  flush()
+                  current_type = m.group(1)
+                  left = top = right = bottom = None
+                  continue
+              for key in ('offset_left', 'offset_top', 'offset_right', 'offset_bottom'):
+                  m = re.match(rf'{key} = ([0-9.\-]+)', line)
+                  if m:
+                      value = float(m.group(1))
+                      if key == 'offset_left': left = value
+                      elif key == 'offset_top': top = value
+                      elif key == 'offset_right': right = value
+                      else: bottom = value
+          flush()
+          report = {'controls': controls, 'tiny_controls': tiny, 'max_control_width': max_w, 'max_control_height': max_h}
+          Path('build/runtime_inspection/ui_runtime_report.json').write_text(json.dumps(report, ensure_ascii=False), encoding='utf-8')
           PY
 
-          /tmp/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64 --headless --path mobile --script /tmp/inspect_ui.gd
-
-          test -s mobile/ui_runtime_report.json
-          cp mobile/ui_runtime_report.json build/runtime_inspection/ui_runtime_report.json
           cat build/runtime_inspection/ui_runtime_report.json
 
           if grep -E 'SCRIPT ERROR|Parse Error|Failed to load script' build/runtime_inspection/game_runtime.log; then
