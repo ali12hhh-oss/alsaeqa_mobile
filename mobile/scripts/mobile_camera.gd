@@ -34,8 +34,8 @@ func _process(delta: float) -> void:
             return
 
     var hero := target as CharacterBody3D
-    var is_crouched := hero != null and (hero.crouching or hero.listening)
-    var is_sprinting := hero != null and hero.sprinting and not is_crouched
+    var is_crouched: bool = hero != null and (hero.crouching or hero.listening)
+    var is_sprinting: bool = hero != null and hero.sprinting and not is_crouched
 
     var distance := crouch_distance if is_crouched else follow_distance
     var height := crouch_height if is_crouched else follow_height
