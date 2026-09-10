@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=3]
+[gd_scene load_steps=18 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/player.gd" id="2_player"]
@@ -6,23 +6,133 @@
 [ext_resource type="Script" path="res://scripts/real_asset_world.gd" id="4_visual"]
 [ext_resource type="Script" path="res://scripts/mobile_camera.gd" id="5_camera"]
 [ext_resource type="Script" path="res://scripts/virtual_controls.gd" id="6_controls"]
+[ext_resource type="Script" path="res://scripts/virtual_joystick.gd" id="7_joystick"]
+[ext_resource type="Script" path="res://scripts/hero_animation_bridge.gd" id="8_anim"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_hero"]
 radius = 0.38
 height = 1.9
 
+[sub_resource type="ProceduralSkyMaterial" id="SkyMaterial"]
+sky_top_color = Color(0.035, 0.09, 0.18, 1)
+sky_horizon_color = Color(0.42, 0.31, 0.22, 1)
+ground_bottom_color = Color(0.015, 0.018, 0.022, 1)
+ground_horizon_color = Color(0.18, 0.13, 0.09, 1)
+sun_angle_max = 18.0
+
+[sub_resource type="Sky" id="Sky_main"]
+sky_material = SubResource("SkyMaterial")
+radiance_size = 2
+
 [sub_resource type="Environment" id="Environment_main"]
-background_mode = 1
-background_color = Color(0.035, 0.045, 0.065, 1)
-ambient_light_energy = 1.35
+background_mode = 2
+sky = SubResource("Sky_main")
+ambient_light_energy = 1.1
+reflected_light_source = 2
+fog_enabled = true
+fog_light_color = Color(0.25, 0.2, 0.16, 1)
+fog_density = 0.006
+fog_sky_affect = 0.35
 
 [sub_resource type="StandardMaterial3D" id="GroundMaterial"]
-albedo_color = Color(0.16, 0.14, 0.12, 1)
-roughness = 0.92
+albedo_color = Color(0.13, 0.12, 0.095, 1)
+roughness = 0.96
 
 [sub_resource type="PlaneMesh" id="GroundMesh"]
-size = Vector2(120, 120)
+size = Vector2(100, 100)
 material = SubResource("GroundMaterial")
+
+[sub_resource type="StyleBoxFlat" id="PanelStyle"]
+bg_color = Color(0.025, 0.035, 0.055, 0.84)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.31, 0.47, 0.65, 0.65)
+corner_radius_top_left = 16
+corner_radius_top_right = 16
+corner_radius_bottom_right = 16
+corner_radius_bottom_left = 16
+shadow_color = Color(0, 0, 0, 0.32)
+shadow_size = 10
+
+[sub_resource type="StyleBoxFlat" id="ButtonNormal"]
+bg_color = Color(0.035, 0.055, 0.085, 0.9)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.33, 0.5, 0.68, 0.72)
+corner_radius_top_left = 14
+corner_radius_top_right = 14
+corner_radius_bottom_right = 14
+corner_radius_bottom_left = 14
+shadow_color = Color(0, 0, 0, 0.35)
+shadow_size = 7
+shadow_offset = Vector2(0, 3)
+
+[sub_resource type="StyleBoxFlat" id="ButtonHover"]
+bg_color = Color(0.07, 0.13, 0.2, 0.96)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.46, 0.72, 0.96, 0.95)
+corner_radius_top_left = 14
+corner_radius_top_right = 14
+corner_radius_bottom_right = 14
+corner_radius_bottom_left = 14
+
+[sub_resource type="StyleBoxFlat" id="ButtonPressed"]
+bg_color = Color(0.1, 0.22, 0.32, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.7, 0.9, 1, 1)
+corner_radius_top_left = 14
+corner_radius_top_right = 14
+corner_radius_bottom_right = 14
+corner_radius_bottom_left = 14
+
+[sub_resource type="StyleBoxFlat" id="ActionNormal"]
+bg_color = Color(0.16, 0.045, 0.055, 0.92)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.88, 0.36, 0.36, 0.82)
+corner_radius_top_left = 20
+corner_radius_top_right = 20
+corner_radius_bottom_right = 20
+corner_radius_bottom_left = 20
+shadow_color = Color(0, 0, 0, 0.4)
+shadow_size = 9
+shadow_offset = Vector2(0, 4)
+
+[sub_resource type="StyleBoxFlat" id="ActionHover"]
+bg_color = Color(0.27, 0.07, 0.08, 0.98)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 0.56, 0.48, 1)
+corner_radius_top_left = 20
+corner_radius_top_right = 20
+corner_radius_bottom_right = 20
+corner_radius_bottom_left = 20
+
+[sub_resource type="StyleBoxFlat" id="ActionPressed"]
+bg_color = Color(0.38, 0.1, 0.1, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 0.78, 0.58, 1)
+corner_radius_top_left = 20
+corner_radius_top_right = 20
+corner_radius_bottom_right = 20
+corner_radius_bottom_left = 20
 
 [node name="ALSAEQAMobile" type="Node3D"]
 script = ExtResource("1_main")
@@ -31,14 +141,20 @@ script = ExtResource("1_main")
 environment = SubResource("Environment_main")
 
 [node name="KeyLight" type="DirectionalLight3D" parent="."]
-rotation_degrees = Vector3(-52, -28, 0)
-light_energy = 1.6
+rotation_degrees = Vector3(-48, -28, 0)
+light_energy = 2.1
 shadow_enabled = true
+directional_shadow_max_distance = 70.0
 
 [node name="FillLight" type="OmniLight3D" parent="."]
-position = Vector3(0, 5, 2)
-light_energy = 8.0
-omni_range = 28.0
+position = Vector3(0, 4.5, 2)
+light_energy = 5.5
+omni_range = 30.0
+
+[node name="RimLight" type="OmniLight3D" parent="."]
+position = Vector3(0, 3.5, -4)
+light_energy = 7.0
+omni_range = 18.0
 
 [node name="Ground" type="MeshInstance3D" parent="."]
 position = Vector3(0, -0.02, 0)
@@ -54,98 +170,177 @@ script = ExtResource("2_player")
 position = Vector3(0, 0.95, 0)
 shape = SubResource("CapsuleShape3D_hero")
 
+[node name="HeroAnimationBridge" type="Node" parent="Hero"]
+script = ExtResource("8_anim")
+
 [node name="Stage1" type="Node" parent="."]
 script = ExtResource("3_stage")
 
 [node name="Camera3D" type="Camera3D" parent="."]
-position = Vector3(0, 4, 7.5)
+position = Vector3(0, 3.1, 5.8)
 script = ExtResource("5_camera")
 
 [node name="MobileHUD" type="CanvasLayer" parent="."]
 
 [node name="TitlePanel" type="Panel" parent="MobileHUD"]
-offset_left = 28.0
-offset_top = 24.0
-offset_right = 690.0
-offset_bottom = 112.0
+anchor_left = 0.025
+anchor_top = 0.03
+anchor_right = 0.38
+anchor_bottom = 0.145
+offset_right = 0.0
+offset_bottom = 0.0
+theme_override_styles/panel = SubResource("PanelStyle")
 
 [node name="Title" type="Label" parent="MobileHUD/TitlePanel"]
-offset_left = 18.0
-offset_top = 10.0
-offset_right = 640.0
-offset_bottom = 52.0
+anchor_left = 0.06
+anchor_top = 0.12
+anchor_right = 0.94
+anchor_bottom = 0.55
+theme_override_colors/font_color = Color(0.92, 0.96, 1, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.6)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 2
 theme_override_font_sizes/font_size = 28
 text = "الصاعقة  •  المنجم"
+horizontal_alignment = 1
 
-[node name="Objective" type="Label" parent="MobileHUD"]
-offset_left = 38.0
-offset_top = 118.0
-offset_right = 900.0
-offset_bottom = 164.0
-theme_override_font_sizes/font_size = 21
-text = "إنقاذ العمال: 0/5    هزيمة السجّان: 0/1"
+[node name="Subtitle" type="Label" parent="MobileHUD/TitlePanel"]
+anchor_left = 0.06
+anchor_top = 0.58
+anchor_right = 0.94
+anchor_bottom = 0.88
+theme_override_colors/font_color = Color(0.55, 0.72, 0.88, 1)
+theme_override_font_sizes/font_size = 14
+text = "الفصل الأول  •  الهروب من المنجم"
+horizontal_alignment = 1
 
-[node name="Hint" type="Label" parent="MobileHUD"]
-offset_left = 40.0
-offset_top = 172.0
-offset_right = 850.0
-offset_bottom = 205.0
-theme_override_font_sizes/font_size = 16
-text = "أنقذ العمال • تجنّب الحراس • أنهِ مواجهة السجّان"
+[node name="ObjectivePanel" type="Panel" parent="MobileHUD"]
+anchor_left = 0.025
+anchor_top = 0.16
+anchor_right = 0.48
+anchor_bottom = 0.255
+theme_override_styles/panel = SubResource("PanelStyle")
+
+[node name="Objective" type="Label" parent="MobileHUD/ObjectivePanel"]
+anchor_left = 0.045
+anchor_top = 0.16
+anchor_right = 0.955
+anchor_bottom = 0.54
+theme_override_colors/font_color = Color(0.94, 0.96, 0.99, 1)
+theme_override_font_sizes/font_size = 19
+text = "إنقاذ العمال  •  ٠/٥        هزيمة زعيم المستعبدين  •  ٠/١"
+horizontal_alignment = 1
+
+[node name="Hint" type="Label" parent="MobileHUD/ObjectivePanel"]
+anchor_left = 0.045
+anchor_top = 0.56
+anchor_right = 0.955
+anchor_bottom = 0.88
+theme_override_colors/font_color = Color(0.65, 0.76, 0.86, 1)
+theme_override_font_sizes/font_size = 13
+text = "أنقذ العمال • تجنّب الحراس • ابحث عن طريق الخروج"
+horizontal_alignment = 1
 
 [node name="MobileControls" type="Control" parent="MobileHUD"]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("6_controls")
 
+[node name="Joystick" type="Control" parent="MobileHUD/MobileControls"]
+anchor_left = 0.025
+anchor_top = 0.66
+anchor_right = 0.22
+anchor_bottom = 0.96
+mouse_filter = 0
+script = ExtResource("7_joystick")
+
 [node name="Sprint" type="Button" parent="MobileHUD/MobileControls"]
-offset_left = 72.0
-offset_top = 610.0
-offset_right = 202.0
-offset_bottom = 680.0
+anchor_left = 0.235
+anchor_top = 0.72
+anchor_right = 0.335
+anchor_bottom = 0.82
+theme_override_colors/font_color = Color(0.86, 0.93, 1, 1)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 17
+theme_override_styles/normal = SubResource("ButtonNormal")
+theme_override_styles/hover = SubResource("ButtonHover")
+theme_override_styles/pressed = SubResource("ButtonPressed")
 text = "ركض"
 
 [node name="Roll" type="Button" parent="MobileHUD/MobileControls"]
-offset_left = 215.0
-offset_top = 610.0
-offset_right = 345.0
-offset_bottom = 680.0
+anchor_left = 0.345
+anchor_top = 0.72
+anchor_right = 0.445
+anchor_bottom = 0.82
+theme_override_colors/font_color = Color(0.86, 0.93, 1, 1)
+theme_override_font_sizes/font_size = 17
+theme_override_styles/normal = SubResource("ButtonNormal")
+theme_override_styles/hover = SubResource("ButtonHover")
+theme_override_styles/pressed = SubResource("ButtonPressed")
 text = "تدحرج"
 
 [node name="Crouch" type="Button" parent="MobileHUD/MobileControls"]
-offset_left = 358.0
-offset_top = 610.0
-offset_right = 488.0
-offset_bottom = 680.0
+anchor_left = 0.455
+anchor_top = 0.72
+anchor_right = 0.555
+anchor_bottom = 0.82
+theme_override_colors/font_color = Color(0.86, 0.93, 1, 1)
+theme_override_font_sizes/font_size = 17
+theme_override_styles/normal = SubResource("ButtonNormal")
+theme_override_styles/hover = SubResource("ButtonHover")
+theme_override_styles/pressed = SubResource("ButtonPressed")
 text = "انحناء"
 
 [node name="Listen" type="Button" parent="MobileHUD/MobileControls"]
-offset_left = 501.0
-offset_top = 610.0
-offset_right = 631.0
-offset_bottom = 680.0
+anchor_left = 0.565
+anchor_top = 0.72
+anchor_right = 0.665
+anchor_bottom = 0.82
+theme_override_colors/font_color = Color(0.86, 0.93, 1, 1)
+theme_override_font_sizes/font_size = 17
+theme_override_styles/normal = SubResource("ButtonNormal")
+theme_override_styles/hover = SubResource("ButtonHover")
+theme_override_styles/pressed = SubResource("ButtonPressed")
 text = "استماع"
 
 [node name="Light" type="Button" parent="MobileHUD/MobileControls"]
-offset_left = 1430.0
-offset_top = 560.0
-offset_right = 1575.0
-offset_bottom = 635.0
+anchor_left = 0.82
+anchor_top = 0.71
+anchor_right = 0.95
+anchor_bottom = 0.83
+theme_override_colors/font_color = Color(1, 0.9, 0.86, 1)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 18
+theme_override_styles/normal = SubResource("ActionNormal")
+theme_override_styles/hover = SubResource("ActionHover")
+theme_override_styles/pressed = SubResource("ActionPressed")
 text = "هجوم"
 
 [node name="Heavy" type="Button" parent="MobileHUD/MobileControls"]
-offset_left = 1590.0
-offset_top = 470.0
-offset_right = 1740.0
-offset_bottom = 545.0
+anchor_left = 0.795
+anchor_top = 0.56
+anchor_right = 0.95
+anchor_bottom = 0.68
+theme_override_colors/font_color = Color(1, 0.9, 0.86, 1)
+theme_override_font_sizes/font_size = 18
+theme_override_styles/normal = SubResource("ActionNormal")
+theme_override_styles/hover = SubResource("ActionHover")
+theme_override_styles/pressed = SubResource("ActionPressed")
 text = "ضربة قوية"
 
 [node name="Thunder" type="Button" parent="MobileHUD/MobileControls"]
-offset_left = 1580.0
-offset_top = 650.0
-offset_right = 1740.0
-offset_bottom = 725.0
+anchor_left = 0.815
+anchor_top = 0.86
+anchor_right = 0.955
+anchor_bottom = 0.985
+theme_override_colors/font_color = Color(0.84, 0.95, 1, 1)
+theme_override_font_sizes/font_size = 19
+theme_override_styles/normal = SubResource("ButtonNormal")
+theme_override_styles/hover = SubResource("ButtonHover")
+theme_override_styles/pressed = SubResource("ButtonPressed")
 text = "رعد"
