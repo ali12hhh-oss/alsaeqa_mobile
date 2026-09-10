@@ -125,12 +125,38 @@ jobs:
           rm -f build/runtime_inspection/runtime_*.png build/runtime_inspection/game_runtime.log build/runtime_inspection/ui_runtime_report.json
 
           set +e
-          timeout 45s xvfb-run -a -s "-screen 0 1280x720x24" bash -lc '
+          timeout 30s xvfb-run -a -s "-screen 0 1280x720x24" bash -lc '
             set -euo pipefail
             export ALSAEQA_CAPTURE_DIR="$GITHUB_WORKSPACE/build/runtime_inspection"
             /tmp/godot/Godot_v'"$GODOT_VERSION"'-stable_linux.x86_64 --path mobile --resolution 1280x720 --verbose > build/runtime_inspection/game_runtime.log 2>&1 &
             godot_pid=$!
-            wait "$godot_pid"
+
+            # Capture the actual X11 framebuffer. This is independent of Godot
+            # timers and therefore remains reliable even while large real assets
+            # are being imported/instantiated.
+            for capture in 04 08 12; do
+              target="build/runtime_inspection/runtime_${capture}s.png"
+              deadline=$((SECONDS + 8))
+              while [ "$SECONDS" -lt "$deadline" ]; do
+                sleep 1
+                if xdotool search --onlyvisible --name "ALSAEQA Mobile" 2>/dev/null | head -n 1 | grep -q .; then
+                  break
+                fi
+              done
+              sleep 1
+              if command -v import >/dev/null 2>&1; then
+                import -window root -crop 1280x720+0+0 "$target" 2>/dev/null || true
+              fi
+              if [ ! -s "$target" ]; then
+                xwd -root -silent 2>/dev/null | convert xwd:- -crop 1280x720+0+0 PNG:"$target" 2>/dev/null || true
+              fi
+              sleep 1
+            done
+
+            if kill -0 "$godot_pid" 2>/dev/null; then
+              kill "$godot_pid" 2>/dev/null || true
+              wait "$godot_pid" || true
+            fi
           '
           status=$?
           set -e
