@@ -109,9 +109,10 @@ func _worker_files(assets: Array[String]) -> Array[String]:
     if explicit.size() >= worker_count:
         return explicit
 
+    var hero_candidates := _hero_files(assets)
     var fallback: Array[String] = []
     for asset in _character_files(assets):
-        if not _hero_files(assets).has(asset):
+        if not hero_candidates.has(asset):
             fallback.append(asset)
     explicit.append_array(fallback)
     return explicit
@@ -154,7 +155,7 @@ func _environment_files(assets: Array[String]) -> Array[String]:
         if lower.contains("character") or lower.contains("basecharacter") or lower.contains("weapon") or lower.contains("monster"):
             continue
         var score := 0
-        for i in ENVIRONMENT_PRIORITY.size():
+        for i in range(ENVIRONMENT_PRIORITY.size()):
             var token: String = ENVIRONMENT_PRIORITY[i]
             if lower.contains(token):
                 score += 100 - i
@@ -209,7 +210,7 @@ func _spawn_hero(assets: Array[String]) -> void:
         push_error("No usable real humanoid hero mesh/skeleton was found")
         return
 
-    _attach_animation_driver(parent, assets)
+    _attach_animation_driver(parent)
     _validate_hero_runtime(selected_instance, selected)
     parent.call_deferred("bind_real_hero_visual")
     _spawned_roles["hero"] = 1
@@ -382,14 +383,10 @@ func _node_bounds(node: Node) -> AABB:
             var visual := child as VisualInstance3D
             var local := visual.get_aabb()
             var transform := visual.global_transform
-            var transformed := AABB(transform * local.position, Vector3.ZERO)
+            var transformed := AABB()
             for corner in range(8):
-                var p := local.get_endpoint(corner)
-                var world_p := transform * p
-                if corner == 0:
-                    transformed = AABB(world_p, Vector3.ZERO)
-                else:
-                    transformed = transformed.expand(world_p)
+                var world_p := transform * local.get_endpoint(corner)
+                transformed = AABB(world_p, Vector3.ZERO) if corner == 0 else transformed.expand(world_p)
             bounds = transformed if not found else bounds.merge(transformed)
             found = true
         var nested := _node_bounds(child)
