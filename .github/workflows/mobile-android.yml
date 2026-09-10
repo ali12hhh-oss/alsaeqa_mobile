@@ -125,7 +125,7 @@ jobs:
           rm -f build/runtime_inspection/runtime_*.png build/runtime_inspection/game_runtime.log build/runtime_inspection/ui_runtime_report.json
 
           set +e
-          timeout 20s xvfb-run -a -s "-screen 0 1280x720x24" bash -lc '
+          timeout 45s xvfb-run -a -s "-screen 0 1280x720x24" bash -lc '
             set -euo pipefail
             export ALSAEQA_CAPTURE_DIR="$GITHUB_WORKSPACE/build/runtime_inspection"
             /tmp/godot/Godot_v'"$GODOT_VERSION"'-stable_linux.x86_64 --path mobile --resolution 1280x720 --verbose > build/runtime_inspection/game_runtime.log 2>&1 &
