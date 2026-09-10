@@ -127,34 +127,9 @@ jobs:
           set +e
           timeout 20s xvfb-run -a -s "-screen 0 1280x720x24" bash -lc '
             set -euo pipefail
+            export ALSAEQA_CAPTURE_DIR="$GITHUB_WORKSPACE/build/runtime_inspection"
             /tmp/godot/Godot_v'"$GODOT_VERSION"'-stable_linux.x86_64 --path mobile --resolution 1280x720 --verbose --quit-after 10 > build/runtime_inspection/game_runtime.log 2>&1 &
             godot_pid=$!
-
-            capture_window() {
-              local output="$1"
-              local window_id=""
-              for _ in $(seq 1 30); do
-                window_id="$(xdotool search --onlyvisible --class Godot 2>/dev/null | head -n 1 || true)"
-                if [ -n "$window_id" ]; then
-                  break
-                fi
-                sleep 0.25
-              done
-              if [ -n "$window_id" ]; then
-                import -window "$window_id" "$output"
-                echo "RUNTIME_WINDOW_ID=$window_id OUTPUT=$output"
-              else
-                echo "RUNTIME_WINDOW_NOT_FOUND OUTPUT=$output"
-                return 1
-              fi
-            }
-
-            sleep 3
-            capture_window build/runtime_inspection/runtime_03s.png || true
-            sleep 3
-            capture_window build/runtime_inspection/runtime_06s.png || true
-            sleep 3
-            capture_window build/runtime_inspection/runtime_09s.png || true
             wait "$godot_pid"
           '
           status=$?
@@ -166,9 +141,24 @@ jobs:
           fi
 
           screenshot_count=$(find build/runtime_inspection -maxdepth 1 -type f -name 'runtime_*.png' -size +0c | wc -l)
-          echo "Captured runtime screenshots: $screenshot_count"
-          if [ "$screenshot_count" -lt 2 ]; then
-            echo "Runtime visual inspection failed to capture at least two real application frames."
+          echo "Captured runtime viewport screenshots: $screenshot_count"
+          if [ "$screenshot_count" -lt 3 ]; then
+            echo "Runtime visual inspection failed to capture all three real application frames."
+            cat build/runtime_inspection/game_runtime.log
+            exit 1
+          fi
+
+          non_black=0
+          for image in build/runtime_inspection/runtime_*.png; do
+            mean="$(identify -format '%[fx:mean]' "$image" 2>/dev/null || echo 0)"
+            echo "RUNTIME_IMAGE_MEAN file=$image mean=$mean"
+            if awk "BEGIN {exit !($mean > 0.005)}"; then
+              non_black=$((non_black + 1))
+            fi
+          done
+          echo "Non-black runtime viewport screenshots: $non_black"
+          if [ "$non_black" -lt 1 ]; then
+            echo "All captured runtime viewport frames are effectively black; the visual inspection is invalid."
             cat build/runtime_inspection/game_runtime.log
             exit 1
           fi
