@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 import hashlib
 import json
+import os
 import shutil
 import subprocess
 import sys
+import urllib.error
 import urllib.request
 import zipfile
 from pathlib import Path
@@ -32,10 +34,31 @@ def download(url: str, target: Path) -> None:
 
 
 def release_digests() -> dict[str, str]:
-    request = urllib.request.Request(RELEASE_API_URL, headers={"Accept": "application/vnd.github+json", "User-Agent": "alsaeqa-mobile-assets"})
-    with urllib.request.urlopen(request, timeout=30) as response:
-        payload = json.load(response)
-    return {a["name"]: a["digest"].removeprefix("sha256:").lower() for a in payload.get("assets", []) if a.get("name") and isinstance(a.get("digest"), str) and a["digest"].startswith("sha256:")}
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "User-Agent": "alsaeqa-mobile-assets",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    request = urllib.request.Request(RELEASE_API_URL, headers=headers)
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            payload = json.load(response)
+    except urllib.error.HTTPError as exc:
+        if exc.code in (403, 429):
+            print(f"WARNING: GitHub release API rate-limited (HTTP {exc.code}); using manifest SHA-256 values for verification")
+            return {}
+        raise
+    except urllib.error.URLError as exc:
+        print(f"WARNING: GitHub release API unavailable ({exc.reason}); using manifest SHA-256 values for verification")
+        return {}
+    return {
+        a["name"]: a["digest"].removeprefix("sha256:").lower()
+        for a in payload.get("assets", [])
+        if a.get("name") and isinstance(a.get("digest"), str) and a["digest"].startswith("sha256:")
+    }
 
 
 def extract_nested(zip_path: Path, destination: Path) -> None:
