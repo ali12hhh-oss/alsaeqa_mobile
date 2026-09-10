@@ -60,7 +60,7 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y curl xz-utils ca-certificates xvfb imagemagick
+          sudo apt-get install -y curl xz-utils ca-certificates xvfb imagemagick xdotool x11-utils
           blender_archive="/tmp/blender-${BLENDER_VERSION}-linux-x64.tar.xz"
           blender_url="https://download.blender.org/release/Blender4.5/blender-${BLENDER_VERSION}-linux-x64.tar.xz"
           blender_sha_url="https://download.blender.org/release/Blender4.5/blender-${BLENDER_VERSION}.sha256"
@@ -122,15 +122,39 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p build/runtime_inspection
-          rm -f build/runtime_inspection/main_runtime.png build/runtime_inspection/game_runtime.log build/runtime_inspection/ui_runtime_report.json
+          rm -f build/runtime_inspection/runtime_*.png build/runtime_inspection/game_runtime.log build/runtime_inspection/ui_runtime_report.json
 
           set +e
           timeout 20s xvfb-run -a -s "-screen 0 1280x720x24" bash -lc '
-            set -e
+            set -euo pipefail
             /tmp/godot/Godot_v'"$GODOT_VERSION"'-stable_linux.x86_64 --path mobile --resolution 1280x720 --verbose --quit-after 10 > build/runtime_inspection/game_runtime.log 2>&1 &
             godot_pid=$!
-            sleep 5
-            import -window root -crop 1280x720+0+0 build/runtime_inspection/main_runtime.png
+
+            capture_window() {
+              local output="$1"
+              local window_id=""
+              for _ in $(seq 1 30); do
+                window_id="$(xdotool search --onlyvisible --class Godot 2>/dev/null | head -n 1 || true)"
+                if [ -n "$window_id" ]; then
+                  break
+                fi
+                sleep 0.25
+              done
+              if [ -n "$window_id" ]; then
+                import -window "$window_id" "$output"
+                echo "RUNTIME_WINDOW_ID=$window_id OUTPUT=$output"
+              else
+                echo "RUNTIME_WINDOW_NOT_FOUND OUTPUT=$output"
+                return 1
+              fi
+            }
+
+            sleep 3
+            capture_window build/runtime_inspection/runtime_03s.png || true
+            sleep 3
+            capture_window build/runtime_inspection/runtime_06s.png || true
+            sleep 3
+            capture_window build/runtime_inspection/runtime_09s.png || true
             wait "$godot_pid"
           '
           status=$?
@@ -141,7 +165,13 @@ jobs:
             exit "$status"
           fi
 
-          test -s build/runtime_inspection/main_runtime.png
+          screenshot_count=$(find build/runtime_inspection -maxdepth 1 -type f -name 'runtime_*.png' -size +0c | wc -l)
+          echo "Captured runtime screenshots: $screenshot_count"
+          if [ "$screenshot_count" -lt 2 ]; then
+            echo "Runtime visual inspection failed to capture at least two real application frames."
+            cat build/runtime_inspection/game_runtime.log
+            exit 1
+          fi
 
           python3 - <<'PY'
           import json
@@ -200,7 +230,7 @@ jobs:
         with:
           name: ALSAEQA-runtime-visual-inspection
           path: |
-            build/runtime_inspection/main_runtime.png
+            build/runtime_inspection/runtime_*.png
             build/runtime_inspection/game_runtime.log
             build/runtime_inspection/ui_runtime_report.json
           if-no-files-found: warn
