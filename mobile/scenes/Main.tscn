@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/player.gd" id="2_player"]
@@ -6,6 +6,7 @@
 [ext_resource type="Script" path="res://scripts/real_asset_world.gd" id="4_visual"]
 [ext_resource type="Script" path="res://scripts/mobile_camera.gd" id="5_camera"]
 [ext_resource type="Script" path="res://scripts/virtual_controls.gd" id="6_controls"]
+[ext_resource type="Script" path="res://scripts/runtime_capture.gd" id="7_capture"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_hero"]
 radius = 0.38
@@ -13,6 +14,9 @@ height = 1.9
 
 [node name="ALSAEQAMobile" type="Node3D"]
 script = ExtResource("1_main")
+
+[node name="RuntimeCapture" type="Node" parent="."]
+script = ExtResource("7_capture")
 
 [node name="World" type="Node3D" parent="."]
 script = ExtResource("4_visual")
