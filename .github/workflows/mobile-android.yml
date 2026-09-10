@@ -128,7 +128,7 @@ jobs:
           timeout 20s xvfb-run -a -s "-screen 0 1280x720x24" bash -lc '
             set -euo pipefail
             export ALSAEQA_CAPTURE_DIR="$GITHUB_WORKSPACE/build/runtime_inspection"
-            /tmp/godot/Godot_v'"$GODOT_VERSION"'-stable_linux.x86_64 --path mobile --resolution 1280x720 --verbose --quit-after 10 > build/runtime_inspection/game_runtime.log 2>&1 &
+            /tmp/godot/Godot_v'"$GODOT_VERSION"'-stable_linux.x86_64 --path mobile --resolution 1280x720 --verbose > build/runtime_inspection/game_runtime.log 2>&1 &
             godot_pid=$!
             wait "$godot_pid"
           '
