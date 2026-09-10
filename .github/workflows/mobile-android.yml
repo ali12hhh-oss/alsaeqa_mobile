@@ -39,10 +39,14 @@ jobs:
           yes | sdkmanager --licenses >/dev/null 2>&1 || true
 
       - name: Download and verify all real ALSAEQA assets
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           python3 Tools/Assets/sync_real_assets.py
 
       - name: Inspect all release archives and nested ZIPs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           python3 Tools/Assets/inspect_release_archives.py
 
@@ -125,32 +129,24 @@ jobs:
           rm -f build/runtime_inspection/runtime_*.png build/runtime_inspection/game_runtime.log build/runtime_inspection/ui_runtime_report.json
 
           set +e
-          timeout 30s xvfb-run -a -s "-screen 0 1280x720x24" bash -lc '
+          timeout 45s xvfb-run -a -s "-screen 0 1280x720x24" bash -lc '
             set -euo pipefail
             export ALSAEQA_CAPTURE_DIR="$GITHUB_WORKSPACE/build/runtime_inspection"
             /tmp/godot/Godot_v'"$GODOT_VERSION"'-stable_linux.x86_64 --path mobile --resolution 1280x720 --verbose > build/runtime_inspection/game_runtime.log 2>&1 &
             godot_pid=$!
 
-            # Capture the actual X11 framebuffer. This is independent of Godot
-            # timers and therefore remains reliable even while large real assets
-            # are being imported/instantiated.
-            for capture in 04 08 12; do
+            # Give the real asset bridge time to instantiate the authored hero,
+            # animation driver and visible environment before the first frame.
+            sleep 10
+            for capture in 10 20 30; do
               target="build/runtime_inspection/runtime_${capture}s.png"
-              deadline=$((SECONDS + 8))
-              while [ "$SECONDS" -lt "$deadline" ]; do
-                sleep 1
-                if xdotool search --onlyvisible --name "ALSAEQA Mobile" 2>/dev/null | head -n 1 | grep -q .; then
-                  break
-                fi
-              done
-              sleep 1
-              if command -v import >/dev/null 2>&1; then
-                import -window root -crop 1280x720+0+0 "$target" 2>/dev/null || true
+              if [ "$capture" != "10" ]; then
+                sleep 10
               fi
+              import -window root -crop 1280x720+0+0 "$target" 2>/dev/null || true
               if [ ! -s "$target" ]; then
                 xwd -root -silent 2>/dev/null | convert xwd:- -crop 1280x720+0+0 PNG:"$target" 2>/dev/null || true
               fi
-              sleep 1
             done
 
             if kill -0 "$godot_pid" 2>/dev/null; then
@@ -177,15 +173,33 @@ jobs:
           non_black=0
           for image in build/runtime_inspection/runtime_*.png; do
             mean="$(identify -format '%[fx:mean]' "$image" 2>/dev/null || echo 0)"
-            echo "RUNTIME_IMAGE_MEAN file=$image mean=$mean"
-            if awk "BEGIN {exit !($mean > 0.005)}"; then
+            deviation="$(identify -format '%[fx:standard_deviation]' "$image" 2>/dev/null || echo 0)"
+            echo "RUNTIME_IMAGE_STATS file=$image mean=$mean deviation=$deviation"
+            if awk "BEGIN {exit !(($mean > 0.005) && ($deviation > 0.01))}"; then
               non_black=$((non_black + 1))
             fi
           done
-          echo "Non-black runtime viewport screenshots: $non_black"
-          if [ "$non_black" -lt 1 ]; then
-            echo "All captured runtime viewport frames are effectively black; the visual inspection is invalid."
+          echo "Non-black/non-flat runtime viewport screenshots: $non_black"
+          if [ "$non_black" -lt 2 ]; then
+            echo "Runtime frames are too dark or visually flat; the application world is not considered rendered."
             cat build/runtime_inspection/game_runtime.log
+            exit 1
+          fi
+
+          if ! grep -q 'ALSAEQA hero selected:' build/runtime_inspection/game_runtime.log; then
+            echo "Real hero selection was not confirmed in the runtime log."
+            exit 1
+          fi
+          if ! grep -q 'ALSAEQA hero animation driver selected:' build/runtime_inspection/game_runtime.log; then
+            echo "Authored hero animation driver was not confirmed in the runtime log."
+            exit 1
+          fi
+          if ! grep -q 'ALSAEQA hero animation bridge | animations=' build/runtime_inspection/game_runtime.log; then
+            echo "Hero animation bridge did not initialize."
+            exit 1
+          fi
+          if ! grep -q 'ALSAEQA real asset coverage | environment:' build/runtime_inspection/game_runtime.log; then
+            echo "Real environment coverage was not confirmed."
             exit 1
           fi
 
@@ -195,41 +209,36 @@ jobs:
           from pathlib import Path
 
           text = Path('mobile/scenes/Main.tscn').read_text(encoding='utf-8')
-          controls = 0
-          tiny = 0
-          max_w = 0.0
-          max_h = 0.0
+          buttons = 0
+          anchored_buttons = 0
+          absolute_buttons = 0
           current_type = None
-          left = top = right = bottom = None
+          has_anchor = False
           def flush():
-              global controls, tiny, max_w, max_h, current_type, left, top, right, bottom
-              if current_type not in {'Control', 'Button', 'Panel', 'Label'}:
+              global buttons, anchored_buttons, absolute_buttons, current_type, has_anchor
+              if current_type != 'Button':
                   return
-              controls += 1
-              if None not in (left, top, right, bottom):
-                  w = abs(right - left)
-                  h = abs(bottom - top)
-                  max_w = max(max_w, w)
-                  max_h = max(max_h, h)
-                  if w < 44 or h < 44:
-                      tiny += 1
+              buttons += 1
+              if has_anchor:
+                  anchored_buttons += 1
+              else:
+                  absolute_buttons += 1
           for line in text.splitlines():
               m = re.match(r'\[node name="[^"]+" type="([^"]+)"', line)
               if m:
                   flush()
                   current_type = m.group(1)
-                  left = top = right = bottom = None
+                  has_anchor = False
                   continue
-              for key in ('offset_left', 'offset_top', 'offset_right', 'offset_bottom'):
-                  m = re.match(rf'{key} = ([0-9.\-]+)', line)
-                  if m:
-                      value = float(m.group(1))
-                      if key == 'offset_left': left = value
-                      elif key == 'offset_top': top = value
-                      elif key == 'offset_right': right = value
-                      else: bottom = value
+              if current_type == 'Button' and re.match(r'anchor_(left|top|right|bottom) = ', line):
+                  has_anchor = True
           flush()
-          report = {'controls': controls, 'tiny_controls': tiny, 'max_control_width': max_w, 'max_control_height': max_h}
+          report = {
+              'buttons': buttons,
+              'anchored_buttons': anchored_buttons,
+              'absolute_buttons': absolute_buttons,
+              'responsive_button_ratio': round(anchored_buttons / buttons, 3) if buttons else 0,
+          }
           Path('build/runtime_inspection/ui_runtime_report.json').write_text(json.dumps(report, ensure_ascii=False), encoding='utf-8')
           PY
 
