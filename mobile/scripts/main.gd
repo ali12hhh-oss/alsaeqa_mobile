@@ -57,7 +57,8 @@ func _prepare_cinematic_home() -> void:
         hero.bind_real_hero_visual()
 
     if hero.has_method("_play_best_animation"):
-        hero.call("_play_best_animation", ["idle", "breathing", "stand"], true)
+        var idle_tokens: Array[String] = ["idle", "breathing", "stand"]
+        hero.call("_play_best_animation", idle_tokens, true)
         home_animation_started = true
 
     _update_cinematic_home(0.0)
@@ -78,7 +79,8 @@ func _update_cinematic_home(_delta: float) -> void:
 
     if is_instance_valid(home_hero_visual):
         if not home_animation_started and hero.has_method("_play_best_animation"):
-            hero.call("_play_best_animation", ["idle", "breathing", "stand"], true)
+            var idle_tokens: Array[String] = ["idle", "breathing", "stand"]
+            hero.call("_play_best_animation", idle_tokens, true)
             home_animation_started = true
         var sway := sin(home_time * 0.85) * 0.012
         home_hero_visual.rotation.y = sway
