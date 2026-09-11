@@ -84,6 +84,11 @@ jobs:
           mkdir -p mobile/assets/converted
           blender --background --python Tools/Assets/blender_convert.py -- build/source_assets mobile/assets/converted
 
+      - name: Attach real Universal Animation Library to canonical hero
+        run: |
+          set -euo pipefail
+          blender --background --python Tools/Assets/attach_quaternius_hero_animations.py -- build/source_assets mobile/assets/converted
+
       - name: Download Godot headless
         run: |
           curl -L --fail --retry 3 \
