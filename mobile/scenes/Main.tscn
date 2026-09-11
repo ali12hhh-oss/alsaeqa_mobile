@@ -63,11 +63,51 @@ script = ExtResource("5_camera")
 
 [node name="MobileHUD" type="CanvasLayer" parent="."]
 
+[node name="HomeShade" type="ColorRect" parent="MobileHUD"]
+offset_right = 1280.0
+offset_bottom = 720.0
+color = Color(0.01, 0.012, 0.018, 0.34)
+mouse_filter = 2
+
+[node name="HomePanel" type="Panel" parent="MobileHUD"]
+offset_left = 410.0
+offset_top = 410.0
+offset_right = 870.0
+offset_bottom = 670.0
+modulate = Color(1, 1, 1, 0.88)
+
+[node name="Title" type="Label" parent="MobileHUD/HomePanel"]
+offset_left = 40.0
+offset_top = 30.0
+offset_right = 420.0
+offset_bottom = 92.0
+theme_override_font_sizes/font_size = 42
+text = "الصاعقة"
+horizontal_alignment = 1
+
+[node name="Subtitle" type="Label" parent="MobileHUD/HomePanel"]
+offset_left = 35.0
+offset_top = 92.0
+offset_right = 425.0
+offset_bottom = 132.0
+theme_override_font_sizes/font_size = 18
+text = "رحلتك مستمرة..."
+horizontal_alignment = 1
+
+[node name="StartButton" type="Button" parent="MobileHUD/HomePanel"]
+offset_left = 70.0
+offset_top = 155.0
+offset_right = 390.0
+offset_bottom = 235.0
+theme_override_font_sizes/font_size = 30
+text = "ابدأ المغامرة"
+
 [node name="TitlePanel" type="Panel" parent="MobileHUD"]
 offset_left = 28.0
 offset_top = 24.0
 offset_right = 690.0
 offset_bottom = 112.0
+visible = false
 
 [node name="Title" type="Label" parent="MobileHUD/TitlePanel"]
 offset_left = 18.0
@@ -82,30 +122,34 @@ offset_left = 38.0
 offset_top = 118.0
 offset_right = 900.0
 offset_bottom = 164.0
+visible = false
 theme_override_font_sizes/font_size = 21
-text = "إنقاذ العمال: 0/5    هزيمة السجّان: 0/1"
+text = "إنقاذ العمال: 0/5    هزيمة زعيم المستعبدين: 0/1"
 
 [node name="Hint" type="Label" parent="MobileHUD"]
 offset_left = 40.0
 offset_top = 172.0
 offset_right = 850.0
 offset_bottom = 205.0
+visible = false
 theme_override_font_sizes/font_size = 16
 text = "أنقذ العمال • تجنّب الحراس • أنهِ مواجهة السجّان"
 
-[node name="HomePanel" type="Panel" parent="MobileHUD"]
-offset_left = 600.0
-offset_top = 360.0
-offset_right = 1320.0
-offset_bottom = 660.0
+[node name="StageIntro" type="Control" parent="MobileHUD"]
+offset_right = 1280.0
+offset_bottom = 720.0
+visible = false
+mouse_filter = 2
 
-[node name="StartButton" type="Button" parent="MobileHUD/HomePanel"]
-offset_left = 160.0
-offset_top = 150.0
-offset_right = 560.0
-offset_bottom = 240.0
-theme_override_font_sizes/font_size = 30
-text = "ابدأ المرحلة الأولى"
+[node name="StageNumber" type="Label" parent="MobileHUD/StageIntro"]
+offset_left = 300.0
+offset_top = 270.0
+offset_right = 980.0
+offset_bottom = 430.0
+theme_override_font_sizes/font_size = 86
+text = "المرحلة ١"
+horizontal_alignment = 1
+vertical_alignment = 1
 
 [node name="MobileControls" type="Control" parent="MobileHUD"]
 layout_mode = 3
@@ -113,6 +157,7 @@ anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 mouse_filter = 2
+visible = false
 script = ExtResource("6_controls")
 
 [node name="Sprint" type="Button" parent="MobileHUD/MobileControls"]
