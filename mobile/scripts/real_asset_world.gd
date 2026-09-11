@@ -13,10 +13,6 @@ const ROLE_PATTERNS := {
     "environment": ["ruin", "dungeon", "prison", "cave", "village", "farm", "wall", "prop", "nature"]
 }
 
-# The campaign has ONE fixed protagonist. This is an ordered identity contract,
-# not a stage-by-stage character picker. If the first asset exists it is always
-# used; the remaining entries are deterministic aliases for the same male
-# Quaternius-style base-character role when a pack changes its filename.
 const CANONICAL_HERO_HINTS := [
     "superhero_male_fullbody.glb",
     "base_character_male.glb",
@@ -128,13 +124,11 @@ func _hero_score(lower: String) -> int:
     var score := 0
     var base_name := lower.get_file()
 
-    # Must look like a character asset, not an environment/prop/weapon file.
     if not (lower.contains("character") or lower.contains("basecharacter") or lower.contains("hero") or lower.contains("worker") or lower.contains("civilian") or lower.contains("villager") or lower.contains("farmer")):
         return -1001
     if lower.contains("weapon") or lower.contains("prop") or lower.contains("environment") or lower.contains("building"):
         return -1001
 
-    # Strong positive signals for the Stage 1 young male worker/civilian role.
     if lower.contains("worker"):
         score += 100
     if lower.contains("civilian"):
@@ -152,8 +146,6 @@ func _hero_score(lower: String) -> int:
     if lower.contains("hero"):
         score += 10
 
-    # Never allow the companion/female superhero or unrelated role families to
-    # become the protagonist merely because of filename ordering.
     if lower.contains("female") or lower.contains("woman") or lower.contains("girl"):
         score -= 700
     if lower.contains("superhero") or lower.contains("super_hero"):
@@ -165,13 +157,33 @@ func _hero_score(lower: String) -> int:
     if lower.contains("robot") or lower.contains("zombie") or lower.contains("skeleton"):
         score -= 900
 
-    # Keep a small preference for ordinary base-character assets over special
-    # costumes/variants when several real male characters score similarly.
     if base_name.contains("base"):
         score += 8
     if base_name.contains("fullbody"):
         score += 3
     return score
+
+## Prefer a real imported hero that contains a usable animation player. This
+## keeps the canonical male identity while avoiding a static T-pose asset when
+## the converted library also contains an animated variant.
+func _select_runtime_hero(candidates: Array[String]) -> Dictionary:
+    var fallback := {}
+    for path in candidates:
+        var packed := load(path) as PackedScene
+        if packed == null:
+            continue
+        var probe := packed.instantiate()
+        var has_mesh := _find_first_mesh(probe) != null
+        var has_skeleton := _find_first_skeleton(probe) != null
+        var has_animation := _find_first_animation_player(probe) != null
+        probe.free()
+        if not has_mesh or not has_skeleton:
+            continue
+        if fallback.is_empty():
+            fallback = {"path": path, "packed": packed, "animated": has_animation}
+        if has_animation:
+            return {"path": path, "packed": packed, "animated": true}
+    return fallback
 
 func _spawn_role_variants(role: String, assets: Array[String], count: int, origin: Vector3, target_height: float) -> void:
     var candidates := _hero_files(assets) if role == "hero" else _role_files(role, assets)
@@ -179,6 +191,30 @@ func _spawn_role_variants(role: String, assets: Array[String], count: int, origi
         push_warning("No converted real assets matched role: %s" % role)
         _spawned_roles[role] = 0
         return
+
+    if role == "hero":
+        var selected := _select_runtime_hero(candidates)
+        if selected.is_empty():
+            push_error("No renderable canonical hero asset could be loaded")
+            _spawned_roles[role] = 0
+            return
+        _spawned_roles[role] = 1
+        var hero_instance := (selected["packed"] as PackedScene).instantiate()
+        hero_instance.name = "hero_Real_01"
+        var hero_parent: Node = get_parent().get_node_or_null("Hero")
+        if hero_parent == null:
+            hero_parent = self
+        hero_parent.add_child(hero_instance)
+        hero_instance.position = Vector3.ZERO
+        _normalize_height(hero_instance, target_height)
+        print("ALSAEQA canonical hero selected: %s | animated=%s" % [selected["path"], selected["animated"]])
+        _validate_hero_runtime(hero_instance, selected["path"])
+        if hero_parent.has_method("bind_real_hero_visual"):
+            hero_parent.call_deferred("bind_real_hero_visual")
+        if not selected["animated"]:
+            push_warning("Canonical hero is renderable but has no AnimationPlayer: %s" % selected["path"])
+        return
+
     _spawned_roles[role] = min(count, candidates.size())
     for i in count:
         var path: String = candidates[i % candidates.size()]
@@ -188,19 +224,9 @@ func _spawn_role_variants(role: String, assets: Array[String], count: int, origi
             continue
         var instance := packed.instantiate()
         instance.name = "%s_Real_%02d" % [role, i + 1]
-        var parent: Node = self
-        if role == "hero":
-            parent = get_parent().get_node_or_null("Hero")
-            if parent == null:
-                parent = self
-        parent.add_child(instance)
-        instance.position = Vector3.ZERO if role == "hero" else _role_position(role, i, count, origin)
+        add_child(instance)
+        instance.position = _role_position(role, i, count, origin)
         _normalize_height(instance, target_height)
-        if role == "hero":
-            print("ALSAEQA canonical hero selected: %s" % path)
-            _validate_hero_runtime(instance, path)
-            if parent.has_method("bind_real_hero_visual"):
-                parent.call_deferred("bind_real_hero_visual")
 
 func _report_role_coverage(assets: Array[String]) -> void:
     for role in ROLE_PATTERNS.keys():
