@@ -13,6 +13,19 @@ const ROLE_PATTERNS := {
     "environment": ["ruin", "dungeon", "prison", "cave", "village", "farm", "wall", "prop", "nature"]
 }
 
+# The campaign has ONE fixed protagonist. This is an ordered identity contract,
+# not a stage-by-stage character picker. If the first asset exists it is always
+# used; the remaining entries are deterministic aliases for the same male
+# Quaternius-style base-character role when a pack changes its filename.
+const CANONICAL_HERO_HINTS := [
+    "superhero_male_fullbody.glb",
+    "base_character_male.glb",
+    "basecharacter_male.glb",
+    "male_fullbody.glb",
+    "male_character.glb",
+    "male_base_character.glb"
+]
+
 @export var worker_count := 5
 @export var guard_count := 9
 @export var environment_count := 8
@@ -67,12 +80,20 @@ func _matches_role(role: String, asset: String) -> bool:
             return true
     return false
 
-## Select the canonical story hero from the real character library.
-## The previous alphabetical selection could pick a female superhero or a
-## visually unrelated character. Scoring is deliberately conservative: a
-## suitable male/worker/civilian character wins, while explicit female,
-## superhero, monster and non-character assets are strongly rejected.
+## Select the single canonical story hero from the real character library.
+## The hero is never selected per stage and never selected by alphabetical
+## order. We first resolve the explicit male identity contract; only if a pack
+## uses an alternate filename do we use a deterministic scored fallback.
 func _hero_files(assets: Array[String]) -> Array[String]:
+    var by_name: Dictionary = {}
+    for asset in assets:
+        by_name[asset.get_file().to_lower()] = asset
+
+    for hint in CANONICAL_HERO_HINTS:
+        var exact: String = by_name.get(hint, "")
+        if not exact.is_empty() and _is_valid_hero_asset(exact.to_lower()):
+            return [exact]
+
     var scored: Array = []
     for asset in assets:
         var lower := asset.to_lower()
@@ -91,6 +112,17 @@ func _hero_files(assets: Array[String]) -> Array[String]:
     for item in scored:
         result.append(item["path"])
     return result
+
+func _is_valid_hero_asset(lower: String) -> bool:
+    if lower.contains("female") or lower.contains("woman") or lower.contains("girl"):
+        return false
+    if lower.contains("supervillain") or lower.contains("villain"):
+        return false
+    if lower.contains("monster") or lower.contains("creature") or lower.contains("beast"):
+        return false
+    if lower.contains("robot") or lower.contains("zombie") or lower.contains("skeleton"):
+        return false
+    return true
 
 func _hero_score(lower: String) -> int:
     var score := 0
@@ -120,8 +152,8 @@ func _hero_score(lower: String) -> int:
     if lower.contains("hero"):
         score += 10
 
-    # Explicitly avoid the unrelated female superhero that previously became
-    # the runtime hero, plus other obviously wrong role families.
+    # Never allow the companion/female superhero or unrelated role families to
+    # become the protagonist merely because of filename ordering.
     if lower.contains("female") or lower.contains("woman") or lower.contains("girl"):
         score -= 700
     if lower.contains("superhero") or lower.contains("super_hero"):
@@ -165,7 +197,7 @@ func _spawn_role_variants(role: String, assets: Array[String], count: int, origi
         instance.position = Vector3.ZERO if role == "hero" else _role_position(role, i, count, origin)
         _normalize_height(instance, target_height)
         if role == "hero":
-            print("ALSAEQA hero selected: %s" % path)
+            print("ALSAEQA canonical hero selected: %s" % path)
             _validate_hero_runtime(instance, path)
             if parent.has_method("bind_real_hero_visual"):
                 parent.call_deferred("bind_real_hero_visual")
