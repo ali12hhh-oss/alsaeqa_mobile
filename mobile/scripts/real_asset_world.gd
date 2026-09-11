@@ -67,21 +67,79 @@ func _matches_role(role: String, asset: String) -> bool:
             return true
     return false
 
+## Select the canonical story hero from the real character library.
+## The previous alphabetical selection could pick a female superhero or a
+## visually unrelated character. Scoring is deliberately conservative: a
+## suitable male/worker/civilian character wins, while explicit female,
+## superhero, monster and non-character assets are strongly rejected.
 func _hero_files(assets: Array[String]) -> Array[String]:
-    var exact: Array[String] = []
-    var broad: Array[String] = []
+    var scored: Array = []
     for asset in assets:
         var lower := asset.to_lower()
-        if lower.contains("hero"):
-            exact.append(asset)
-        elif lower.contains("basecharacter"):
-            broad.append(asset)
-        elif lower.contains("character"):
-            broad.append(asset)
-    exact.sort()
-    broad.sort()
-    exact.append_array(broad)
-    return exact
+        var score := _hero_score(lower)
+        if score <= -1000:
+            continue
+        scored.append({"path": asset, "score": score})
+
+    scored.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+        if a["score"] == b["score"]:
+            return a["path"] < b["path"]
+        return a["score"] > b["score"]
+    )
+
+    var result: Array[String] = []
+    for item in scored:
+        result.append(item["path"])
+    return result
+
+func _hero_score(lower: String) -> int:
+    var score := 0
+    var base_name := lower.get_file()
+
+    # Must look like a character asset, not an environment/prop/weapon file.
+    if not (lower.contains("character") or lower.contains("basecharacter") or lower.contains("hero") or lower.contains("worker") or lower.contains("civilian") or lower.contains("villager") or lower.contains("farmer")):
+        return -1001
+    if lower.contains("weapon") or lower.contains("prop") or lower.contains("environment") or lower.contains("building"):
+        return -1001
+
+    # Strong positive signals for the Stage 1 young male worker/civilian role.
+    if lower.contains("worker"):
+        score += 100
+    if lower.contains("civilian"):
+        score += 85
+    if lower.contains("villager"):
+        score += 80
+    if lower.contains("farmer"):
+        score += 75
+    if lower.contains("male") or lower.contains("man") or lower.contains("boy"):
+        score += 55
+    if lower.contains("young"):
+        score += 20
+    if lower.contains("character") or lower.contains("basecharacter"):
+        score += 20
+    if lower.contains("hero"):
+        score += 10
+
+    # Explicitly avoid the unrelated female superhero that previously became
+    # the runtime hero, plus other obviously wrong role families.
+    if lower.contains("female") or lower.contains("woman") or lower.contains("girl"):
+        score -= 700
+    if lower.contains("superhero") or lower.contains("super_hero"):
+        score -= 600
+    if lower.contains("supervillain") or lower.contains("villain"):
+        score -= 500
+    if lower.contains("monster") or lower.contains("creature") or lower.contains("beast"):
+        score -= 900
+    if lower.contains("robot") or lower.contains("zombie") or lower.contains("skeleton"):
+        score -= 900
+
+    # Keep a small preference for ordinary base-character assets over special
+    # costumes/variants when several real male characters score similarly.
+    if base_name.contains("base"):
+        score += 8
+    if base_name.contains("fullbody"):
+        score += 3
+    return score
 
 func _spawn_role_variants(role: String, assets: Array[String], count: int, origin: Vector3, target_height: float) -> void:
     var candidates := _hero_files(assets) if role == "hero" else _role_files(role, assets)
@@ -107,6 +165,7 @@ func _spawn_role_variants(role: String, assets: Array[String], count: int, origi
         instance.position = Vector3.ZERO if role == "hero" else _role_position(role, i, count, origin)
         _normalize_height(instance, target_height)
         if role == "hero":
+            print("ALSAEQA hero selected: %s" % path)
             _validate_hero_runtime(instance, path)
             if parent.has_method("bind_real_hero_visual"):
                 parent.call_deferred("bind_real_hero_visual")
