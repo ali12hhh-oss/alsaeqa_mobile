@@ -93,6 +93,20 @@ offset_bottom = 205.0
 theme_override_font_sizes/font_size = 16
 text = "أنقذ العمال • تجنّب الحراس • أنهِ مواجهة السجّان"
 
+[node name="HomePanel" type="Panel" parent="MobileHUD"]
+offset_left = 600.0
+offset_top = 360.0
+offset_right = 1320.0
+offset_bottom = 660.0
+
+[node name="StartButton" type="Button" parent="MobileHUD/HomePanel"]
+offset_left = 160.0
+offset_top = 150.0
+offset_right = 560.0
+offset_bottom = 240.0
+theme_override_font_sizes/font_size = 30
+text = "ابدأ المرحلة الأولى"
+
 [node name="MobileControls" type="Control" parent="MobileHUD"]
 layout_mode = 3
 anchors_preset = 15
