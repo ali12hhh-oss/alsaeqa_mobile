@@ -16,7 +16,15 @@ def fail(message: str) -> None:
 def reset_scene() -> None:
     bpy.ops.object.select_all(action="SELECT")
     bpy.ops.object.delete(use_global=False)
-    for datablocks in (bpy.data.meshes, bpy.data.curves, bpy.data.materials, bpy.data.cameras, bpy.data.lights, bpy.data.armatures):
+    for datablocks in (
+        bpy.data.meshes,
+        bpy.data.curves,
+        bpy.data.materials,
+        bpy.data.cameras,
+        bpy.data.lights,
+        bpy.data.armatures,
+        bpy.data.actions,
+    ):
         for block in list(datablocks):
             if block.users == 0:
                 datablocks.remove(block)
@@ -34,7 +42,8 @@ def pick_armature(objects: set[bpy.types.Object], animated: bool = False):
     candidates = [obj for obj in objects if obj.type == "ARMATURE"]
     if animated:
         candidates = [
-            obj for obj in candidates
+            obj
+            for obj in candidates
             if obj.animation_data
             and (
                 obj.animation_data.action is not None
@@ -44,17 +53,25 @@ def pick_armature(objects: set[bpy.types.Object], animated: bool = False):
     return max(candidates, key=lambda obj: len(obj.data.bones)) if candidates else None
 
 
-def collect_actions(armature) -> list[bpy.types.Action]:
-    """Collect every authored action imported with the donor GLB.
+def action_bones(action) -> set[str]:
+    names: set[str] = set()
+    for curve in action.fcurves:
+        marker = 'pose.bones["'
+        if marker in curve.data_path:
+            names.add(curve.data_path.split(marker, 1)[1].split('"', 1)[0])
+    return names
 
-    Blender's glTF importer can create all animation clips as Action datablocks
-    while assigning only one of them to the donor armature. Looking only at
-    armature.animation_data therefore loses the rest of a multi-clip library.
-    We first collect assigned/NLA actions, then include imported global actions
-    whose F-curves actually target bones present on the donor rig.
+
+def collect_actions(armature, imported_action_names: set[str] | None = None) -> list[bpy.types.Action]:
+    """Collect assigned/NLA actions plus newly imported authored actions.
+
+    The glTF importer may leave only one clip assigned to the donor armature
+    while keeping the remaining clips as global Action datablocks. Therefore
+    looking only at animation_data.action loses real library clips.
     """
     actions: list[bpy.types.Action] = []
     seen: set[int] = set()
+
     if armature.animation_data:
         if armature.animation_data.action is not None:
             action = armature.animation_data.action
@@ -70,6 +87,8 @@ def collect_actions(armature) -> list[bpy.types.Action]:
     for action in list(bpy.data.actions):
         if action.as_pointer() in seen:
             continue
+        if imported_action_names is not None and action.name not in imported_action_names:
+            continue
         bones = action_bones(action)
         if bones and (bones & donor_bones):
             actions.append(action)
@@ -78,19 +97,26 @@ def collect_actions(armature) -> list[bpy.types.Action]:
     return actions
 
 
-def action_bones(action) -> set[str]:
-    names: set[str] = set()
-    for curve in action.fcurves:
-        marker = 'pose.bones["'
-        if marker in curve.data_path:
-            names.add(curve.data_path.split(marker, 1)[1].split('"', 1)[0])
-    return names
-
-
 def safe_name(value: str) -> str:
     allowed = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-")
     cleaned = "".join(ch if ch in allowed else "_" for ch in value).strip("_")
     return cleaned or "ALSAEQA_Animation"
+
+
+def animation_candidate_score(path: Path) -> int:
+    name = str(path).lower()
+    score = 0
+    if "animationlibrary_godot_standard" in name:
+        score += 1000
+    if "godot" in name:
+        score += 500
+    if "animationlibrary" in name:
+        score += 250
+    if "universal animation library 2" in name or "universal_animation_library_2" in name:
+        score -= 100
+    if "ual2_standard" in name:
+        score -= 200
+    return score
 
 
 def find_animation_glb(converted_root: Path, hero_path: Path) -> Path:
@@ -104,16 +130,24 @@ def find_animation_glb(converted_root: Path, hero_path: Path) -> Path:
     if not candidates:
         fail("no converted Universal Animation Library GLB was found; the conversion step must produce the animation pack before transfer")
 
+    candidates.sort(key=lambda path: (-animation_candidate_score(path), str(path).lower()))
     print(f"[ALSAEQA][hero-animation] animation GLB candidates: {len(candidates)}")
     for path in candidates:
-        print(f"[ALSAEQA][hero-animation] probing animation source: {path}")
+        print(f"[ALSAEQA][hero-animation] probing animation source: {path} score={animation_candidate_score(path)}")
         reset_scene()
+        before_actions = {action.name for action in bpy.data.actions}
         objects = import_glb(path)
         armature = pick_armature(objects, animated=True)
-        if armature and collect_actions(armature):
-            print(f"[ALSAEQA][hero-animation] selected animated source: {path}")
-            return path
-    fail("Universal Animation Library GLBs were found, but none contains an imported animated armature")
+        imported_actions = {action.name for action in bpy.data.actions} - before_actions
+        if armature:
+            actions = collect_actions(armature, imported_actions)
+            print(f"[ALSAEQA][hero-animation] candidate armature={armature.name} bones={len(armature.data.bones)} imported_actions={len(imported_actions)} usable_actions={len(actions)}")
+            for action in actions:
+                print(f"[ALSAEQA][hero-animation] candidate clip: {action.name} bones={len(action_bones(action))}")
+            if len(actions) >= 3:
+                print(f"[ALSAEQA][hero-animation] selected animated source: {path}")
+                return path
+    fail("Universal Animation Library GLBs were found, but no candidate contains at least 3 real authored clips compatible with the canonical hero")
 
 
 def main() -> int:
@@ -140,6 +174,7 @@ def main() -> int:
     if len(hero_bones) < 10:
         fail(f"canonical hero armature has only {len(hero_bones)} bones")
 
+    before_actions = {action.name for action in bpy.data.actions}
     donor_objects = import_glb(animation_path)
     donor_armature = pick_armature(donor_objects, animated=True)
     if donor_armature is None:
@@ -150,8 +185,9 @@ def main() -> int:
     if common_ratio < 0.80:
         fail("hero and animation library rigs are not compatible enough for direct transfer")
 
-    donor_actions = collect_actions(donor_armature)
-    print(f"[ALSAEQA][hero-animation] imported donor action datablocks: {len(donor_actions)}")
+    imported_actions = {action.name for action in bpy.data.actions} - before_actions
+    donor_actions = collect_actions(donor_armature, imported_actions)
+    print(f"[ALSAEQA][hero-animation] imported donor action datablocks: {len(imported_actions)}; usable authored actions: {len(donor_actions)}")
     compatible = []
     for action in donor_actions:
         bones = action_bones(action)
