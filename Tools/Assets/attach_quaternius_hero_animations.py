@@ -45,19 +45,36 @@ def pick_armature(objects: set[bpy.types.Object], animated: bool = False):
 
 
 def collect_actions(armature) -> list[bpy.types.Action]:
+    """Collect every authored action imported with the donor GLB.
+
+    Blender's glTF importer can create all animation clips as Action datablocks
+    while assigning only one of them to the donor armature. Looking only at
+    armature.animation_data therefore loses the rest of a multi-clip library.
+    We first collect assigned/NLA actions, then include imported global actions
+    whose F-curves actually target bones present on the donor rig.
+    """
     actions: list[bpy.types.Action] = []
     seen: set[int] = set()
-    if not armature.animation_data:
-        return actions
-    if armature.animation_data.action is not None:
-        action = armature.animation_data.action
-        actions.append(action)
-        seen.add(action.as_pointer())
-    for track in armature.animation_data.nla_tracks:
-        for strip in track.strips:
-            if strip.action is not None and strip.action.as_pointer() not in seen:
-                actions.append(strip.action)
-                seen.add(strip.action.as_pointer())
+    if armature.animation_data:
+        if armature.animation_data.action is not None:
+            action = armature.animation_data.action
+            actions.append(action)
+            seen.add(action.as_pointer())
+        for track in armature.animation_data.nla_tracks:
+            for strip in track.strips:
+                if strip.action is not None and strip.action.as_pointer() not in seen:
+                    actions.append(strip.action)
+                    seen.add(strip.action.as_pointer())
+
+    donor_bones = {bone.name for bone in armature.data.bones}
+    for action in list(bpy.data.actions):
+        if action.as_pointer() in seen:
+            continue
+        bones = action_bones(action)
+        if bones and (bones & donor_bones):
+            actions.append(action)
+            seen.add(action.as_pointer())
+
     return actions
 
 
@@ -134,12 +151,14 @@ def main() -> int:
         fail("hero and animation library rigs are not compatible enough for direct transfer")
 
     donor_actions = collect_actions(donor_armature)
+    print(f"[ALSAEQA][hero-animation] imported donor action datablocks: {len(donor_actions)}")
     compatible = []
     for action in donor_actions:
         bones = action_bones(action)
         ratio = len(bones & hero_bones) / max(1, len(bones))
         if bones and ratio >= 0.80:
             compatible.append(action)
+            print(f"[ALSAEQA][hero-animation] compatible clip: {action.name} bones={len(bones)} ratio={ratio:.3f}")
     if len(compatible) < 3:
         fail(f"only {len(compatible)} compatible authored animation clips were found")
     print(f"[ALSAEQA][hero-animation] compatible authored clips: {len(compatible)}")
