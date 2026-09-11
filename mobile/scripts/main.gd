@@ -9,6 +9,7 @@ extends Node3D
 @onready var start_button: Button = $MobileHUD/HomePanel/StartButton
 @onready var stage_intro: Control = $MobileHUD/StageIntro
 @onready var stage_intro_label: Label = $MobileHUD/StageIntro/StageNumber
+@onready var gameplay_world: Node3D = $World
 
 var gameplay_started := false
 var home_time := 0.0
@@ -25,6 +26,11 @@ func _ready() -> void:
     mobile_controls.visible = false
     stage_intro.visible = false
     _set_gameplay_hud_visible(false)
+
+    # The gameplay asset library contains large environmental pieces placed
+    # for Stage 1. They must not intersect the camera during the clean home
+    # presentation; the same real assets are restored when gameplay starts.
+    gameplay_world.visible = false
 
     hero.set_physics_process(false)
     hero.set_process(false)
@@ -67,15 +73,15 @@ func _update_cinematic_home(_delta: float) -> void:
     if not is_instance_valid(hero) or not is_instance_valid(camera):
         return
 
-    var target := hero.global_position + Vector3.UP * 1.35
+    var target := hero.global_position + Vector3.UP * 1.05
     var drift := Vector3(
-        sin(home_time * 0.23) * 0.65,
-        2.65 + sin(home_time * 0.31) * 0.10,
-        6.8 + cos(home_time * 0.19) * 0.55
+        sin(home_time * 0.23) * 0.42,
+        1.85 + sin(home_time * 0.31) * 0.08,
+        4.65 + cos(home_time * 0.19) * 0.30
     )
     camera.global_position = hero.global_position + drift
     camera.look_at(target, Vector3.UP)
-    camera.fov = 58.0 + sin(home_time * 0.17) * 1.5
+    camera.fov = 52.0 + sin(home_time * 0.17) * 1.2
 
     if is_instance_valid(home_hero_visual):
         if not home_animation_started and hero.has_method("_play_best_animation"):
@@ -94,6 +100,7 @@ func _start_adventure() -> void:
     home_panel.visible = false
     mobile_controls.visible = true
     _set_gameplay_hud_visible(true)
+    gameplay_world.visible = true
 
     hero.set_process(true)
     hero.set_physics_process(true)
