@@ -217,7 +217,12 @@ def main() -> int:
         copied.name = name
         track = hero_armature.animation_data.nla_tracks.new()
         track.name = name
-        strip = track.strips.new(name, float(copied.frame_range[0]), copied)
+        # NlaStrips.new() requires an int start frame, not a float (Blender's
+        # API is strict about this argument's type). copied.frame_range[0] is
+        # a float, so it must be cast explicitly or Blender raises
+        # "TypeError: NlaStrips.new(): error with argument 2, 'start' -
+        # expected an int type, not float" and the whole conversion aborts.
+        strip = track.strips.new(name, int(copied.frame_range[0]), copied)
         strip.action_frame_start = float(copied.frame_range[0])
         strip.action_frame_end = float(copied.frame_range[1])
         strip.blend_type = "REPLACE"
