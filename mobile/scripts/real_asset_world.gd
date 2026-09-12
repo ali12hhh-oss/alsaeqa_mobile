@@ -78,10 +78,15 @@ func _role_files(role: String, assets: Array[String]) -> Array[String]:
         var body_fallback := _hero_files(assets)
         if not body_fallback.is_empty():
             _worker_uses_body_fallback = true
+            # NOTE: the whole concatenated string must be wrapped in
+            # parentheses before applying the % operator — without them,
+            # % binds only to the last string literal (which has no %d in
+            # it), so the format argument is never consumed and Godot raises
+            # "String formatting error: not all arguments converted".
             push_warning(
-                "No dedicated 'worker' asset in source packs; reusing base " +
+                ("No dedicated 'worker' asset in source packs; reusing base " +
                 "character body as a placeholder (%d candidate(s)). Add a " +
-                "distinct worker/civilian pack to replace this fallback."
+                "distinct worker/civilian pack to replace this fallback.")
                 % body_fallback.size()
             )
             return body_fallback
