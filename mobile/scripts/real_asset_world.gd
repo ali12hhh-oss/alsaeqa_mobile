@@ -27,6 +27,7 @@ const CANONICAL_HERO_HINTS := [
 @export var environment_count := 8
 
 var _spawned_roles: Dictionary = {}
+var _worker_uses_body_fallback := false
 
 func _ready() -> void:
     var assets := _find_glb_files(ROOT)
@@ -66,6 +67,25 @@ func _role_files(role: String, assets: Array[String]) -> Array[String]:
         if _matches_role(role, asset):
             matches.append(asset)
     matches.sort()
+
+    # KNOWN GAP: the currently downloaded source packs contain no dedicated
+    # "worker" body mesh (only Superhero_Male_FullBody / Superhero_Female_
+    # FullBody exist as generic human bodies). Rather than silently spawning
+    # zero workers, reuse the base character bodies as a stand-in and say so
+    # loudly, so this is understood as a placeholder and not mistaken for a
+    # real distinct worker asset.
+    if role == "worker" and matches.is_empty():
+        var body_fallback := _hero_files(assets)
+        if not body_fallback.is_empty():
+            _worker_uses_body_fallback = true
+            push_warning(
+                "No dedicated 'worker' asset in source packs; reusing base " +
+                "character body as a placeholder (%d candidate(s)). Add a " +
+                "distinct worker/civilian pack to replace this fallback."
+                % body_fallback.size()
+            )
+            return body_fallback
+
     return matches
 
 func _matches_role(role: String, asset: String) -> bool:
@@ -234,7 +254,8 @@ func _report_role_coverage(assets: Array[String]) -> void:
         if matches.is_empty():
             push_warning("Real asset coverage missing for logical role: %s" % role)
         else:
-            print("ALSAEQA real asset coverage | %s: %d source-derived GLB candidates" % [role, matches.size()])
+            var suffix := " (using base-character fallback)" if role == "worker" and _worker_uses_body_fallback else ""
+            print("ALSAEQA real asset coverage | %s: %d source-derived GLB candidates%s" % [role, matches.size(), suffix])
 
 func _validate_hero_runtime(instance: Node, source_path: String) -> void:
     if _find_first_mesh(instance) == null:
