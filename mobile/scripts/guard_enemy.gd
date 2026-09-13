@@ -1,17 +1,19 @@
 extends CharacterBody3D
 class_name GuardEnemy
 
-## Stage 1 mine guard / enslaver enemy body.
+## Stage 1 mine guard enemy body.
 ## Wraps a real imported character visual with a CharacterBody3D so the
 ## hero's melee attack shape-query (which requires an actual PhysicsBody3D
 ## collider — see player.gd _resolve_attack_hits) can hit it and call
-## receive_damage(). Guards do not move on their own in this first pass
-## (they hold patrol/guard points); chase/patrol AI is a later addition,
-## not invented here to avoid shipping unfinished behavior as if it were
-## final.
+## receive_damage(). Every guard counts toward the stage's clear condition;
+## there is no single "designated" target — defeating one guard does not by
+## itself complete anything, all of them must fall (one at a time, not
+## simultaneously) before Stage1Controller marks the stage clear. Guards do
+## not move on their own in this first pass (they hold patrol/guard points);
+## chase/patrol AI is a later addition, not invented here to avoid shipping
+## unfinished behavior as if it were final.
 
 @export var max_health: float = 60.0
-@export var is_designated_slaver: bool = false
 
 var health: float
 var _defeated := false
@@ -24,6 +26,10 @@ func _ready() -> void:
     _stage1 = get_tree().get_first_node_in_group("stage1_controller")
     collision_layer = 1
     collision_mask = 1
+    if _stage1 != null and _stage1.has_method("register_guard"):
+        _stage1.call("register_guard")
+    else:
+        push_warning("GuardEnemy could not find Stage1Controller in group 'stage1_controller' to register itself")
 
 func _physics_process(delta: float) -> void:
     # Guards currently hold position; gravity keeps them grounded so they do
@@ -66,8 +72,8 @@ func _defeat() -> void:
         # a frozen T-posed corpse standing in the scene.
         visible = false
 
-    if is_designated_slaver and _stage1 != null and _stage1.has_method("defeat_designated_slaver"):
-        _stage1.call("defeat_designated_slaver")
+    if _stage1 != null and _stage1.has_method("notify_guard_defeated"):
+        _stage1.call("notify_guard_defeated")
 
 func _find_first_animation_player(node: Node) -> AnimationPlayer:
     for child in node.get_children():
