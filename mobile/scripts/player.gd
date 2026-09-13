@@ -50,6 +50,10 @@ var hero_visual_ready := false
 var _animation_names: Array[String] = []
 
 func _ready() -> void:
+    # WorkerCaptive / GuardEnemy interact and combat logic identify the
+    # hero via this group rather than a fixed node path, since it is the
+    # single canonical hero body regardless of scene layout.
+    add_to_group("alsaeqa_hero")
     bind_real_hero_visual()
     _was_on_floor = is_on_floor()
 
