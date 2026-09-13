@@ -6,6 +6,11 @@ extends Node
 var current_stage: int = 1
 var rescued_workers: int = 0
 var defeated_slavers: int = 0
+## Total number of guards actually spawned for the current stage, set once
+## by Stage1Controller as guards register themselves at runtime (the count
+## depends on how many guard-role assets the real asset library produced,
+## not a fixed design-time number).
+var total_guards_stage1: int = 0
 var discovered_clues: Array[String] = []
 var thunder_charge: float = 0.0
 var hero_name: String = "الصاعقة"
@@ -16,7 +21,12 @@ func _ready() -> void:
     load_game()
 
 func complete_stage_if_ready() -> bool:
-    if current_stage == 1 and rescued_workers >= 5 and defeated_slavers >= 1:
+    # All guards must be defeated to clear the stage — not just one
+    # designated target. They do not need to be defeated in a single burst;
+    # defeats accumulate one at a time as the hero fights through the mine,
+    # and the stage completes once the running total reaches every guard
+    # that was actually spawned.
+    if current_stage == 1 and rescued_workers >= 5 and total_guards_stage1 > 0 and defeated_slavers >= total_guards_stage1:
         current_stage = 2
         add_clue("Stage1_MineNetwork")
         save_game()
@@ -32,6 +42,7 @@ func save_game() -> void:
         "current_stage": current_stage,
         "rescued_workers": rescued_workers,
         "defeated_slavers": defeated_slavers,
+        "total_guards_stage1": total_guards_stage1,
         "discovered_clues": discovered_clues,
         "thunder_charge": thunder_charge,
         "hero_name": hero_name
@@ -51,6 +62,7 @@ func load_game() -> void:
         current_stage = int(parsed.get("current_stage", 1))
         rescued_workers = int(parsed.get("rescued_workers", 0))
         defeated_slavers = int(parsed.get("defeated_slavers", 0))
+        total_guards_stage1 = int(parsed.get("total_guards_stage1", 0))
         discovered_clues = Array(parsed.get("discovered_clues", []))
         thunder_charge = float(parsed.get("thunder_charge", 0.0))
         hero_name = str(parsed.get("hero_name", "الصاعقة"))
