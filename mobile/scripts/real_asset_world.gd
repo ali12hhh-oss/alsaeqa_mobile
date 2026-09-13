@@ -27,6 +27,9 @@ const CANONICAL_HERO_HINTS := [
     "male_base_character.glb"
 ]
 
+const WORKER_CAPTIVE_SCRIPT := preload("res://scripts/worker_captive.gd")
+const GUARD_ENEMY_SCRIPT := preload("res://scripts/guard_enemy.gd")
+
 @export var worker_count := 5
 @export var guard_count := 9
 @export var environment_count := 8
@@ -258,6 +261,44 @@ func _spawn_role_variants(role: String, assets: Array[String], count: int, origi
             continue
         var instance := packed.instantiate()
         instance.name = "%s_Real_%02d" % [role, i + 1]
+
+        if role == "worker":
+            # WorkerCaptive extends Node3D, the same base class the glTF
+            # import root already is, so replacing the script is safe and
+            # keeps the imported mesh/skeleton hierarchy intact.
+            instance.set_script(WORKER_CAPTIVE_SCRIPT)
+            add_child(instance)
+            instance.position = _role_position(role, i, count, origin)
+            _normalize_height(instance, target_height)
+            instance.worker_index = i
+            continue
+
+        if role == "guard":
+            # GuardEnemy extends CharacterBody3D so the hero's melee shape
+            # query (which only finds actual PhysicsBody3D colliders) can
+            # hit it — the imported visual itself has no physics body, so
+            # it is reparented as a child of a new physics-enabled wrapper
+            # rather than added to the scene directly.
+            var body := CharacterBody3D.new()
+            body.name = "%s_Real_%02d" % [role, i + 1]
+            body.set_script(GUARD_ENEMY_SCRIPT)
+            body.is_designated_slaver = (i == 0)
+
+            var collision := CollisionShape3D.new()
+            var capsule := CapsuleShape3D.new()
+            capsule.height = target_height
+            capsule.radius = target_height * 0.18
+            collision.shape = capsule
+            collision.position = Vector3.UP * (target_height * 0.5)
+            body.add_child(collision)
+
+            add_child(body)
+            body.position = _role_position(role, i, count, origin)
+            instance.name = "GuardVisual"
+            body.add_child(instance)
+            _normalize_height(instance, target_height)
+            continue
+
         add_child(instance)
         instance.position = _role_position(role, i, count, origin)
         _normalize_height(instance, target_height)
