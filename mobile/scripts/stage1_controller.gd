@@ -1,17 +1,21 @@
 extends Node
 
-## Stage 1 progression: exactly five counted workers must reach safety and the
-## designated slaver must be defeated. Additional mine guards create pressure
-## but are not a separate progression gate.
+## Stage 1 progression: exactly five counted workers must reach safety and
+## every guard that was spawned for the mine must be defeated — not just one
+## designated target. Defeats do not need to happen in a single sequence or
+## burst; they accumulate one guard at a time as the hero fights through the
+## mine, and the stage completes once the running total reaches every guard
+## that actually exists in the scene.
 
 const REQUIRED_WORKERS := 5
 const MINIMUM_MINE_GUARDS := 7
 
 var worker_safe: Array[bool] = [false, false, false, false, false]
-var designated_slaver_defeated := false
+var guards_defeated := 0
 
 signal stage_ready
 signal rescue_progress(current: int, required: int)
+signal guard_progress(current: int, required: int)
 
 func _ready() -> void:
     # WorkerCaptive and GuardEnemy instances look up this controller via
@@ -31,12 +35,21 @@ func rescue_worker(worker_index: int) -> void:
     rescue_progress.emit(GameState.rescued_workers, REQUIRED_WORKERS)
     _try_complete()
 
-func defeat_designated_slaver() -> void:
-    if designated_slaver_defeated:
-        return
-    designated_slaver_defeated = true
-    GameState.defeated_slavers = 1
+## Called once by each GuardEnemy in its _ready(), since the real spawn
+## count depends on the real asset library and is not a fixed design-time
+## number — this is how Stage1Controller learns how many guards exist.
+func register_guard() -> void:
+    GameState.total_guards_stage1 += 1
+    guard_progress.emit(guards_defeated, GameState.total_guards_stage1)
+
+## Called once per guard death. Guards are defeated one at a time across the
+## fight, not all at once — the stage only completes once every registered
+## guard has been individually defeated.
+func notify_guard_defeated() -> void:
+    guards_defeated += 1
+    GameState.defeated_slavers = guards_defeated
     GameState.save_game()
+    guard_progress.emit(guards_defeated, GameState.total_guards_stage1)
     _try_complete()
 
 func _safe_worker_count() -> int:
@@ -47,6 +60,6 @@ func _safe_worker_count() -> int:
     return count
 
 func _try_complete() -> void:
-    if _safe_worker_count() >= REQUIRED_WORKERS and designated_slaver_defeated:
+    if _safe_worker_count() >= REQUIRED_WORKERS and GameState.total_guards_stage1 > 0 and guards_defeated >= GameState.total_guards_stage1:
         if GameState.complete_stage_if_ready():
             stage_ready.emit()
