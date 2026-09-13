@@ -282,7 +282,6 @@ func _spawn_role_variants(role: String, assets: Array[String], count: int, origi
             var body := CharacterBody3D.new()
             body.name = "%s_Real_%02d" % [role, i + 1]
             body.set_script(GUARD_ENEMY_SCRIPT)
-            body.is_designated_slaver = (i == 0)
 
             var collision := CollisionShape3D.new()
             var capsule := CapsuleShape3D.new()
