@@ -19,6 +19,7 @@ var home_animation_started := false
 
 func _ready() -> void:
     stage1.rescue_progress.connect(_on_rescue_progress)
+    stage1.guard_progress.connect(_on_guard_progress)
     stage1.stage_ready.connect(_on_stage_ready)
     start_button.pressed.connect(_start_adventure)
 
@@ -130,9 +131,17 @@ func _set_gameplay_hud_visible(value: bool) -> void:
     $MobileHUD/Hint.visible = value
 
 func _refresh_hud() -> void:
-    objective_label.text = "إنقاذ العمال: %d/5    هزيمة زعيم المستعبدين: %d/1" % [GameState.rescued_workers, GameState.defeated_slavers]
+    # total_guards_stage1 is populated as GuardEnemy instances register
+    # themselves at runtime (the real count depends on the asset library),
+    # so it can briefly read 0 before the world finishes spawning; clamp to
+    # at least 1 so the HUD never shows a misleading "0/0" as fully cleared.
+    var guard_total := max(GameState.total_guards_stage1, 1)
+    objective_label.text = "إنقاذ العمال: %d/5    هزيمة الحراس: %d/%d" % [GameState.rescued_workers, GameState.defeated_slavers, guard_total]
 
 func _on_rescue_progress(_current: int, _required: int) -> void:
+    _refresh_hud()
+
+func _on_guard_progress(_current: int, _required: int) -> void:
     _refresh_hud()
 
 func _on_stage_ready() -> void:
