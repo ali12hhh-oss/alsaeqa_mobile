@@ -3,7 +3,8 @@
 
 Run inside Blender (background), AFTER
 attach_quaternius_hero_animations.py has already produced the animated
-canonical hero GLB.
+canonical hero GLB, using the same converted_root discovery pattern as
+that script (no hardcoded paths in the CI workflow).
 
 WHY THIS EXISTS:
 The "Superhero_Male_FullBody" base body is a bare sculpt body by design
@@ -15,21 +16,16 @@ material bug). Real clothing comes from a separate pack
 and NOT guaranteed to share the same skeleton/bone names as the hero.
 
 WHAT THIS SCRIPT DOES, HONESTLY:
-1. Imports the already-animated hero GLB and the chosen outfit FBX.
-2. Checks bone-name compatibility between the two armatures, the same way
-   attach_quaternius_hero_animations.py already does for animation clips.
-   If compatible (>=80% common bone names), the outfit mesh is parented
-   onto the HERO's armature (re-using its existing Armature modifier, just
-   re-targeted) so it animates together with the hero for free.
-3. If NOT compatible, this is reported loudly and the script exits with an
-   error rather than shipping a silently detached/T-posed outfit mesh
-   floating on top of the animated hero.
-4. Exports a combined hero+outfit GLB replacing the hero file.
-
-This is a best-effort transfer, not a guaranteed one — outfit packs from a
-different source than the base body are not guaranteed to share bone
-naming, and if they don't, this script fails loudly rather than shipping a
-broken result, per project rule: never ship placeholders as final.
+1. Finds the already-animated hero GLB and the chosen outfit source under
+   converted_root by filename, the same way attach_quaternius_hero_
+   animations.py finds its animation source.
+2. Checks bone-name compatibility between the two armatures. If compatible
+   (>=80% common bone names), the outfit mesh is parented onto the HERO's
+   armature so it animates together with the hero for free.
+3. If NOT compatible, this fails loudly rather than shipping a silently
+   detached/T-posed outfit mesh floating on top of the animated hero.
+4. Exports a combined hero+outfit GLB, replacing the hero file in place
+   (same static-backup/animated-swap convention as the animation script).
 """
 from __future__ import annotations
 
@@ -38,6 +34,11 @@ import sys
 from pathlib import Path
 
 import bpy
+
+OUTFIT_FILENAME_CANDIDATES = [
+    "Male_Peasant.glb",
+    "Male_Ranger.glb",
+]
 
 
 def fail(message: str) -> None:
@@ -56,15 +57,9 @@ def reset_scene() -> None:
                 datablocks.remove(block)
 
 
-def import_any(path: Path) -> set:
+def import_glb(path: Path) -> set:
     before = set(bpy.data.objects)
-    ext = path.suffix.lower()
-    if ext == ".glb" or ext == ".gltf":
-        result = bpy.ops.import_scene.gltf(filepath=str(path))
-    elif ext == ".fbx":
-        result = bpy.ops.import_scene.fbx(filepath=str(path))
-    else:
-        fail(f"unsupported source extension: {path}")
+    result = bpy.ops.import_scene.gltf(filepath=str(path))
     if result != {'FINISHED'}:
         fail(f"could not import: {path}")
     return set(bpy.data.objects) - before
@@ -79,30 +74,41 @@ def pick_meshes(objects: set):
     return [o for o in objects if o.type == "MESH"]
 
 
+def find_one(converted_root: Path, filename: str) -> Path | None:
+    matches = sorted(converted_root.rglob(filename))
+    return matches[0] if matches else None
+
+
 def main() -> int:
     if "--" not in sys.argv:
-        fail("usage: blender --background --python attach_hero_outfit.py -- HERO_GLB OUTFIT_FBX OUTPUT_GLB")
+        fail("usage: blender --background --python attach_hero_outfit.py -- CONVERTED_ROOT")
     marker = sys.argv.index("--")
     args = sys.argv[marker + 1:]
-    if len(args) < 3:
-        fail("expected: HERO_GLB OUTFIT_FBX OUTPUT_GLB")
-    hero_path = Path(args[0]).resolve()
-    outfit_path = Path(args[1]).resolve()
-    output_path = Path(args[2]).resolve()
+    if not args:
+        fail("missing CONVERTED_ROOT")
+    converted_root = Path(args[0]).resolve()
 
-    if not hero_path.is_file():
-        fail(f"hero GLB not found: {hero_path}")
-    if not outfit_path.is_file():
-        fail(f"outfit source not found: {outfit_path}")
+    hero_path = find_one(converted_root, "Superhero_Male_FullBody.glb")
+    if hero_path is None:
+        fail("canonical hero GLB not found under converted_root")
+
+    outfit_path = None
+    for candidate_name in OUTFIT_FILENAME_CANDIDATES:
+        outfit_path = find_one(converted_root, candidate_name)
+        if outfit_path is not None:
+            print(f"[ALSAEQA][hero-outfit] selected outfit source: {outfit_path}")
+            break
+    if outfit_path is None:
+        fail(f"no outfit GLB found under converted_root matching any of {OUTFIT_FILENAME_CANDIDATES}")
 
     reset_scene()
-    hero_objects = import_any(hero_path)
+    hero_objects = import_glb(hero_path)
     hero_armature = pick_armature(hero_objects)
     if hero_armature is None:
         fail(f"hero GLB has no armature: {hero_path}")
     hero_bones = {b.name for b in hero_armature.data.bones}
 
-    outfit_objects = import_any(outfit_path)
+    outfit_objects = import_glb(outfit_path)
     outfit_armature = pick_armature(outfit_objects)
     outfit_meshes = pick_meshes(outfit_objects)
     if not outfit_meshes:
@@ -116,7 +122,7 @@ def main() -> int:
         if ratio < 0.80:
             fail(
                 f"outfit armature is not compatible enough with the hero armature "
-                f"(ratio={ratio:.3f} < 0.80) — refusing to ship a detached/broken outfit. "
+                f"(ratio={ratio:.3f} < 0.80) \u2014 refusing to ship a detached/broken outfit. "
                 f"Outfit source: {outfit_path}"
             )
     else:
@@ -144,6 +150,13 @@ def main() -> int:
             obj.select_set(True)
     bpy.context.view_layer.objects.active = hero_armature
 
+    output_path = hero_path.with_name(hero_path.stem + ".with-outfit.glb")
+    backup_path = hero_path.with_name(hero_path.stem + ".pre-outfit-backup.glb")
+    if output_path.exists():
+        output_path.unlink()
+    if backup_path.exists():
+        backup_path.unlink()
+
     result = bpy.ops.export_scene.gltf(
         filepath=str(output_path),
         export_format="GLB",
@@ -160,7 +173,9 @@ def main() -> int:
     if result != {'FINISHED'} or not output_path.is_file() or output_path.stat().st_size < 10000:
         fail("export did not produce a valid combined hero+outfit GLB")
 
-    print(f"[ALSAEQA][hero-outfit] SUCCESS: {output_path} contains hero body + {len(outfit_meshes)} outfit mesh(es)")
+    shutil.move(str(hero_path), str(backup_path))
+    shutil.move(str(output_path), str(hero_path))
+    print(f"[ALSAEQA][hero-outfit] SUCCESS: {hero_path} now contains hero body + {len(outfit_meshes)} outfit mesh(es)")
     return 0
 
 
