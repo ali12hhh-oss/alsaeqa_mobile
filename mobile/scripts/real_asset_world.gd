@@ -8,7 +8,12 @@ const ROOT := "res://assets/converted"
 const ROLE_PATTERNS := {
     "hero": ["hero", "basecharacter", "character"],
     "worker": ["worker", "civilian", "villager", "farmer"],
-    "guard": ["guard", "soldier", "warrior", "knight", "medieval"],
+    # NOTE: "medieval" was previously in this list, but the only pack whose
+    # path contains that word is "Medieval Village MegaKit" — an environment
+    # kit (buildings/props, zero characters). It was matching non-character
+    # meshes as "guards". Removed; guard now correctly has no real dedicated
+    # pack and uses the explicit fallback below instead of a false match.
+    "guard": ["guard", "soldier", "warrior", "knight"],
     "beast": ["beast", "mount", "horse", "creature", "monster", "dragon", "snake"],
     "environment": ["ruin", "dungeon", "prison", "cave", "village", "farm", "wall", "prop", "nature"]
 }
@@ -27,7 +32,13 @@ const CANONICAL_HERO_HINTS := [
 @export var environment_count := 8
 
 var _spawned_roles: Dictionary = {}
-var _worker_uses_body_fallback := false
+# KNOWN GAP: the currently downloaded source packs contain no dedicated
+# "worker" or "guard" body mesh — only the Superhero_Male/Female_FullBody
+# generic bodies exist. Both roles fall back to reusing the canonical hero
+# body (with its attached outfit) as a stand-in, and both report this
+# loudly rather than silently spawning zero instances or matching the wrong
+# asset. Tracked per-role so the coverage report is accurate for each.
+var _role_uses_body_fallback: Dictionary = {}
 
 func _ready() -> void:
     var assets := _find_glb_files(ROOT)
@@ -61,6 +72,10 @@ func _find_glb_files(path: String) -> Array[String]:
     dir.list_dir_end()
     return result
 
+## Roles that fall back to reusing the canonical hero body (with its
+## attached outfit) when no dedicated real asset exists for them.
+const BODY_FALLBACK_ROLES := ["worker", "guard"]
+
 func _role_files(role: String, assets: Array[String]) -> Array[String]:
     var matches: Array[String] = []
     for asset in assets:
@@ -68,26 +83,20 @@ func _role_files(role: String, assets: Array[String]) -> Array[String]:
             matches.append(asset)
     matches.sort()
 
-    # KNOWN GAP: the currently downloaded source packs contain no dedicated
-    # "worker" body mesh (only Superhero_Male_FullBody / Superhero_Female_
-    # FullBody exist as generic human bodies). Rather than silently spawning
-    # zero workers, reuse the base character bodies as a stand-in and say so
-    # loudly, so this is understood as a placeholder and not mistaken for a
-    # real distinct worker asset.
-    if role == "worker" and matches.is_empty():
+    if role in BODY_FALLBACK_ROLES and matches.is_empty():
         var body_fallback := _hero_files(assets)
         if not body_fallback.is_empty():
-            _worker_uses_body_fallback = true
+            _role_uses_body_fallback[role] = true
             # NOTE: the whole concatenated string must be wrapped in
             # parentheses before applying the % operator — without them,
             # % binds only to the last string literal (which has no %d in
             # it), so the format argument is never consumed and Godot raises
             # "String formatting error: not all arguments converted".
             push_warning(
-                ("No dedicated 'worker' asset in source packs; reusing base " +
-                "character body as a placeholder (%d candidate(s)). Add a " +
-                "distinct worker/civilian pack to replace this fallback.")
-                % body_fallback.size()
+                ("No dedicated '%s' asset in source packs; reusing the " +
+                "canonical hero body as a placeholder (%d candidate(s)). " +
+                "Add a distinct pack for this role to replace this fallback.")
+                % [role, body_fallback.size()]
             )
             return body_fallback
 
@@ -259,7 +268,7 @@ func _report_role_coverage(assets: Array[String]) -> void:
         if matches.is_empty():
             push_warning("Real asset coverage missing for logical role: %s" % role)
         else:
-            var suffix := " (using base-character fallback)" if role == "worker" and _worker_uses_body_fallback else ""
+            var suffix := " (using base-character fallback)" if _role_uses_body_fallback.get(role, false) else ""
             print("ALSAEQA real asset coverage | %s: %d source-derived GLB candidates%s" % [role, matches.size(), suffix])
 
 func _validate_hero_runtime(instance: Node, source_path: String) -> void:
