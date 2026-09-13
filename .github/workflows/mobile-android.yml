@@ -89,6 +89,11 @@ jobs:
           set -euo pipefail
           blender --background --python Tools/Assets/attach_quaternius_hero_animations.py -- build/source_assets mobile/assets/converted
 
+      - name: Attach real clothing outfit to canonical hero
+        run: |
+          set -euo pipefail
+          blender --background --python Tools/Assets/attach_hero_outfit.py -- mobile/assets/converted
+
       - name: Download Godot headless
         run: |
           curl -L --fail --retry 3 \
@@ -136,9 +141,6 @@ jobs:
             /tmp/godot/Godot_v'"$GODOT_VERSION"'-stable_linux.x86_64 --path mobile --resolution 1280x720 --verbose > build/runtime_inspection/game_runtime.log 2>&1 &
             godot_pid=$!
 
-            # Capture the actual X11 framebuffer. This is independent of Godot
-            # timers and therefore remains reliable even while large real assets
-            # are being imported/instantiated.
             for capture in 04 08 12; do
               target="build/runtime_inspection/runtime_${capture}s.png"
               deadline=$((SECONDS + 8))
