@@ -13,6 +13,13 @@ var designated_slaver_defeated := false
 signal stage_ready
 signal rescue_progress(current: int, required: int)
 
+func _ready() -> void:
+    # WorkerCaptive and GuardEnemy instances look up this controller via
+    # get_tree().get_first_node_in_group("stage1_controller") rather than a
+    # hardcoded node path, since they are spawned dynamically by
+    # real_asset_world.gd and do not have a fixed position in the scene tree.
+    add_to_group("stage1_controller")
+
 func rescue_worker(worker_index: int) -> void:
     if worker_index < 0 or worker_index >= REQUIRED_WORKERS:
         return
