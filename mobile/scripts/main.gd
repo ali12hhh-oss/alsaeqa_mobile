@@ -135,7 +135,7 @@ func _refresh_hud() -> void:
     # themselves at runtime (the real count depends on the asset library),
     # so it can briefly read 0 before the world finishes spawning; clamp to
     # at least 1 so the HUD never shows a misleading "0/0" as fully cleared.
-    var guard_total := max(GameState.total_guards_stage1, 1)
+    var guard_total: int = max(GameState.total_guards_stage1, 1)
     objective_label.text = "إنقاذ العمال: %d/5    هزيمة الحراس: %d/%d" % [GameState.rescued_workers, GameState.defeated_slavers, guard_total]
 
 func _on_rescue_progress(_current: int, _required: int) -> void:
