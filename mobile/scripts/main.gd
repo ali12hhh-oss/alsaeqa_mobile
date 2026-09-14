@@ -99,6 +99,15 @@ func _start_adventure() -> void:
 
     gameplay_started = true
     home_panel.visible = false
+
+    var story_intro: Control = $MobileHUD.get_node_or_null("StoryIntro")
+    if story_intro != null and story_intro.has_method("start"):
+        story_intro.finished.connect(_begin_stage_gameplay, CONNECT_ONE_SHOT)
+        story_intro.start()
+    else:
+        _begin_stage_gameplay()
+
+func _begin_stage_gameplay() -> void:
     mobile_controls.visible = true
     _set_gameplay_hud_visible(true)
     gameplay_world.visible = true
