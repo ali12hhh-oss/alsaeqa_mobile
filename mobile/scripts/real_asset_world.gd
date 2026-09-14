@@ -32,7 +32,7 @@ const GUARD_ENEMY_SCRIPT := preload("res://scripts/guard_enemy.gd")
 
 @export var worker_count := 5
 @export var guard_count := 9
-@export var environment_count := 8
+@export var environment_count := 36
 
 var _spawned_roles: Dictionary = {}
 # KNOWN GAP: the currently downloaded source packs contain no dedicated
@@ -300,7 +300,16 @@ func _spawn_role_variants(role: String, assets: Array[String], count: int, origi
 
         add_child(instance)
         instance.position = _role_position(role, i, count, origin)
-        _normalize_height(instance, target_height)
+        if role == "environment":
+            # Forcing every environment piece to one uniform height distorts
+            # small props into giant shapes and shrinks large ruin sections
+            # to nothing, since a single wall/floor/barrel/pillar pack mixes
+            # wildly different real-world sizes. Environment kits are
+            # generally authored at correct real-world scale already, so
+            # they are placed at their native imported scale instead.
+            pass
+        else:
+            _normalize_height(instance, target_height)
 
 func _report_role_coverage(assets: Array[String]) -> void:
     for role in ROLE_PATTERNS.keys():
@@ -355,9 +364,52 @@ func _role_position(role: String, index: int, count: int, origin: Vector3) -> Ve
         return origin + Vector3(cos(angle) * 11.0, 0, sin(angle) * 11.0)
     if role == "beast":
         return origin + Vector3(float(index % 2) * 7.0, 0, float(index / 2) * 6.0)
+    if role == "environment":
+        return origin + _mine_perimeter_position(index, count)
     var row := index / 4
     var col := index % 4
     return origin + Vector3(float(col - 1) * 12.0, 0, float(row - 1) * 10.0)
+
+## Places environment pieces around an enclosed mine boundary (perimeter
+## walls plus an inner scatter ring for props/rubble) instead of a plain
+## open grid, so the real modular dungeon/ruins assets read as an actual
+## contained space. Boundary matches the composition the earlier primitive
+## blockout used (46x34 floor, walls at x=+-22 / z=+-15) since that
+## footprint was already sized to the hero/worker/guard placement radii
+## used elsewhere in this file.
+##
+## HONEST LIMITATION: this places whole environment GLBs at even intervals
+## along the boundary by their bounding-box center; it does not know each
+## piece's actual door/socket connectors, so seams between adjacent modular
+## pieces are not guaranteed to align perfectly. That level of precision
+## needs visual review/tuning inside the Editor once real screenshots are
+## available — this is a first structured pass, not a finished hand-authored
+## level.
+func _mine_perimeter_position(index: int, count: int) -> Vector3:
+    var perimeter_count: int = int(ceil(float(count) * 0.7))
+    var scatter_count: int = count - perimeter_count
+
+    if index < perimeter_count:
+        var half_width := 21.0
+        var half_depth := 14.0
+        var perimeter_length := (half_width * 2.0) * 2.0 + (half_depth * 2.0) * 2.0
+        var distance: float = (float(index) / float(max(perimeter_count, 1))) * perimeter_length
+
+        if distance < half_width * 2.0:
+            return Vector3(-half_width + distance, 0, -half_depth)
+        distance -= half_width * 2.0
+        if distance < half_depth * 2.0:
+            return Vector3(half_width, 0, -half_depth + distance)
+        distance -= half_depth * 2.0
+        if distance < half_width * 2.0:
+            return Vector3(half_width - distance, 0, half_depth)
+        distance -= half_width * 2.0
+        return Vector3(-half_width, 0, half_depth - distance)
+
+    var scatter_index := index - perimeter_count
+    var angle := TAU * float(scatter_index) / float(max(scatter_count, 1))
+    var radius := 6.0 + float(scatter_index % 3) * 3.5
+    return Vector3(cos(angle) * radius, 0, sin(angle) * radius)
 
 func _normalize_height(node: Node, target_height: float) -> void:
     var bounds := _node_bounds(node)
