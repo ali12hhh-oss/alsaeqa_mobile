@@ -5,14 +5,15 @@ extends Control
 ## sequential fading text over a black screen with the canonical hero
 ## model visible and idling, driven by CinematicDirector story beats.
 ##
-## MUSIC: no real music asset exists anywhere in the downloaded ALSAEQA
-## asset packs (confirmed by inspecting the full release archive inventory
-## — zero audio/music files of any kind). music_player below is wired and
-## ready to play a real track the moment one is added to the project
-## (assign an AudioStream to $MusicPlayer.stream, or call
-## play_music(stream) before start()); until then it stays silent rather
-## than shipping a placeholder beep or stock sound as if it were final
-## music, per the project's no-placeholder rule.
+## MUSIC: no music asset exists in the ALSAEQA art packs themselves
+## (confirmed by inspecting the full release archive inventory — zero
+## audio files of any kind). Real music for this scene comes from Kenney's
+## "Music Loops" pack (CC0 / public domain, no attribution required,
+## kenney.nl via github.com/eturner58/game-assets) — track "Sad Descent",
+## downloaded by CI at build time (see mobile-android.yml) rather than
+## committed as binary here. If that download step ever fails or is
+## removed, this stays silent rather than falling back to a placeholder
+## beep, per the project's no-placeholder rule.
 
 signal finished
 
@@ -39,6 +40,16 @@ func _ready() -> void:
     visible = false
     label.modulate.a = 0.0
     skip_button.pressed.connect(_skip)
+    # Real CC0 track (Kenney "Sad Descent", public domain) is downloaded by
+    # CI into this exact path before the project is validated/exported; see
+    # .github/workflows/mobile-android.yml step "Download real CC0 music".
+    # Loaded here at runtime rather than pre-wired in the .tscn resource so
+    # this script keeps working even if the CI download step is skipped
+    # (it just stays silent, per the no-placeholder-audio rule).
+    if music_player.stream == null:
+        var real_music: AudioStream = load("res://assets/audio/stage1_origin.ogg")
+        if real_music != null:
+            music_player.stream = real_music
 
 func start() -> void:
     if _running:
@@ -51,7 +62,7 @@ func start() -> void:
     if music_player.stream != null:
         music_player.play()
     else:
-        push_warning("StoryIntro: no music stream assigned yet — playing the opening scene silently. Assign a real track to $MusicPlayer.stream when one is available.")
+        push_warning("StoryIntro: no music stream found at res://assets/audio/stage1_origin.ogg — playing the opening scene silently until the CI download step runs or a real track is assigned.")
 
     CinematicDirector.start_story_beat("HeroOrigin", line_duration * lines.size())
     _play_next_line()
