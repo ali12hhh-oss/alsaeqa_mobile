@@ -55,6 +55,8 @@ script = ExtResource("2_player")
 position = Vector3(0, 0.95, 0)
 shape = SubResource("CapsuleShape3D_hero")
 
+[node name="CombatSound" type="AudioStreamPlayer" parent="Hero"]
+
 [node name="Stage1" type="Node" parent="."]
 script = ExtResource("3_stage")
 
