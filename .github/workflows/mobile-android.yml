@@ -94,6 +94,15 @@ jobs:
           set -euo pipefail
           blender --background --python Tools/Assets/attach_hero_outfit.py -- mobile/assets/converted
 
+      - name: Download real CC0 music (Kenney, public domain)
+        run: |
+          set -euo pipefail
+          mkdir -p mobile/assets/audio
+          curl -L --fail --retry 3 \
+            "https://raw.githubusercontent.com/eturner58/game-assets/main/kenney/Audio/Music%20Loops/Loops/Sad%20Descent.ogg" \
+            -o mobile/assets/audio/stage1_origin.ogg
+          test -s mobile/assets/audio/stage1_origin.ogg
+
       - name: Download Godot headless
         run: |
           curl -L --fail --retry 3 \
