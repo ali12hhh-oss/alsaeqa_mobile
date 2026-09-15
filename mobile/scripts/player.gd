@@ -49,6 +49,16 @@ var hero_animation_player: AnimationPlayer
 var hero_visual_ready := false
 var _animation_names: Array[String] = []
 
+@onready var combat_sound: AudioStreamPlayer = $CombatSound
+
+# Real CC0 combat sounds (Kenney Foley "Swords" pack, public domain),
+# downloaded by CI into these folders — see mobile-android.yml step
+# "Download real CC0 combat sounds". Loaded at runtime rather than
+# pre-wired in the .tscn so the game stays silent (not fake-beeping) if
+# that download step is ever skipped, per the no-placeholder-audio rule.
+var _swing_sounds: Array[AudioStream] = []
+var _impact_sounds: Array[AudioStream] = []
+
 func _ready() -> void:
     # WorkerCaptive / GuardEnemy interact and combat logic identify the
     # hero via this group rather than a fixed node path, since it is the
@@ -56,6 +66,35 @@ func _ready() -> void:
     add_to_group("alsaeqa_hero")
     bind_real_hero_visual()
     _was_on_floor = is_on_floor()
+    _load_combat_sounds()
+
+func _load_combat_sounds() -> void:
+    _swing_sounds = _load_sounds_in_folder("res://assets/audio/combat/swing")
+    _impact_sounds = _load_sounds_in_folder("res://assets/audio/combat/impact")
+
+func _load_sounds_in_folder(path: String) -> Array[AudioStream]:
+    var result: Array[AudioStream] = []
+    var dir := DirAccess.open(path)
+    if dir == null:
+        return result
+    dir.list_dir_begin()
+    while true:
+        var file_name := dir.get_next()
+        if file_name.is_empty():
+            break
+        if file_name.to_lower().ends_with(".ogg"):
+            var stream := load(path.path_join(file_name)) as AudioStream
+            if stream != null:
+                result.append(stream)
+    dir.list_dir_end()
+    return result
+
+func _play_random(sounds: Array[AudioStream]) -> void:
+    if sounds.is_empty() or combat_sound == null:
+        return
+    combat_sound.stream = sounds[randi() % sounds.size()]
+    combat_sound.pitch_scale = randf_range(0.94, 1.08)
+    combat_sound.play()
 
 ## Called by the asset bridge after the real hero scene is instantiated.
 ## Main.tscn keeps one canonical Hero gameplay body; the imported visual is
@@ -296,6 +335,7 @@ func _begin_attack(heavy: bool) -> void:
     _combat_cooldown = 0.62 if heavy else 0.38
     _combo_reset_time = 0.9
     _play_action_animation(tokens, 0.52 if heavy else 0.34)
+    _play_random(_swing_sounds)
     CinematicDirector.combat_impact(heavy)
     _resolve_attack_hits()
 
@@ -323,6 +363,7 @@ func _resolve_attack_hits() -> void:
         if target.has_method("receive_damage"):
             target.receive_damage(damage, global_position, _attack_heavy)
             _attack_targets.append(target)
+            _play_random(_impact_sounds)
 
 func is_attack_active() -> bool:
     return _attack_active and _combat_window > 0.0
