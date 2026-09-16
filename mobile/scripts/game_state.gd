@@ -15,6 +15,15 @@ var discovered_clues: Array[String] = []
 var thunder_charge: float = 0.0
 var hero_name: String = "الصاعقة"
 
+## Store/inventory economy. inventory maps item_id -> owned count; items are
+## defined in store_catalog.gd, not duplicated here, so this stays a plain
+## data map regardless of how the catalog grows.
+var currency: int = 50
+var inventory: Dictionary = {}
+
+signal currency_changed(new_amount: int)
+signal inventory_changed
+
 const SAVE_PATH := "user://alsaeqa_save.json"
 
 func _ready() -> void:
@@ -37,6 +46,38 @@ func add_clue(clue_id: String) -> void:
     if clue_id not in discovered_clues:
         discovered_clues.append(clue_id)
 
+## Adds an item to the inventory regardless of source (store purchase or a
+## gameplay pickup/reward). Kept as one shared entry point so both cases
+## always go through the same accounting and the same signal.
+func add_item(item_id: String, count: int = 1) -> void:
+    if count <= 0:
+        return
+    inventory[item_id] = int(inventory.get(item_id, 0)) + count
+    inventory_changed.emit()
+    save_game()
+
+func item_count(item_id: String) -> int:
+    return int(inventory.get(item_id, 0))
+
+## Returns true and deducts currency/grants the item only if the purchase
+## actually succeeds (enough currency); callers should check the return
+## value rather than assuming success.
+func purchase_item(item_id: String, price: int) -> bool:
+    if price < 0 or currency < price:
+        return false
+    currency -= price
+    add_item(item_id, 1)
+    currency_changed.emit(currency)
+    save_game()
+    return true
+
+func add_currency(amount: int) -> void:
+    if amount == 0:
+        return
+    currency = max(currency + amount, 0)
+    currency_changed.emit(currency)
+    save_game()
+
 func save_game() -> void:
     var data := {
         "current_stage": current_stage,
@@ -45,7 +86,9 @@ func save_game() -> void:
         "total_guards_stage1": total_guards_stage1,
         "discovered_clues": discovered_clues,
         "thunder_charge": thunder_charge,
-        "hero_name": hero_name
+        "hero_name": hero_name,
+        "currency": currency,
+        "inventory": inventory
     }
     var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
     if file:
@@ -66,3 +109,6 @@ func load_game() -> void:
         discovered_clues = Array(parsed.get("discovered_clues", []))
         thunder_charge = float(parsed.get("thunder_charge", 0.0))
         hero_name = str(parsed.get("hero_name", "الصاعقة"))
+        currency = int(parsed.get("currency", 50))
+        var raw_inventory = parsed.get("inventory", {})
+        inventory = raw_inventory if raw_inventory is Dictionary else {}
