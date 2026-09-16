@@ -10,6 +10,11 @@ extends Node3D
 @onready var stage_intro: Control = $MobileHUD/StageIntro
 @onready var stage_intro_label: Label = $MobileHUD/StageIntro/StageNumber
 @onready var gameplay_world: Node3D = $World
+@onready var store_button: Button = $MobileHUD/HomePanel/StoreButton
+@onready var inventory_button: Button = $MobileHUD/HomePanel/InventoryButton
+@onready var home_currency_label: Label = $MobileHUD/HomePanel/CurrencyLabel
+@onready var store_screen: Control = $MobileHUD/StoreScreen
+@onready var inventory_screen: Control = $MobileHUD/InventoryScreen
 
 var gameplay_started := false
 var home_time := 0.0
@@ -22,6 +27,10 @@ func _ready() -> void:
     stage1.guard_progress.connect(_on_guard_progress)
     stage1.stage_ready.connect(_on_stage_ready)
     start_button.pressed.connect(_start_adventure)
+    store_button.pressed.connect(func(): store_screen.show_screen())
+    inventory_button.pressed.connect(func(): inventory_screen.show_screen())
+    GameState.currency_changed.connect(_on_home_currency_changed)
+    home_currency_label.text = "رصيدك: %d" % GameState.currency
 
     gameplay_started = false
     mobile_controls.visible = false
@@ -152,6 +161,9 @@ func _on_rescue_progress(_current: int, _required: int) -> void:
 
 func _on_guard_progress(_current: int, _required: int) -> void:
     _refresh_hud()
+
+func _on_home_currency_changed(new_amount: int) -> void:
+    home_currency_label.text = "رصيدك: %d" % new_amount
 
 func _on_stage_ready() -> void:
     _refresh_hud()
