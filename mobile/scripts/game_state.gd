@@ -7,9 +7,10 @@ var current_stage: int = 1
 var rescued_workers: int = 0
 var defeated_slavers: int = 0
 ## Total number of guards actually spawned for the current stage, set once
-## by Stage1Controller as guards register themselves at runtime (the count
-## depends on how many guard-role assets the real asset library produced,
-## not a fixed design-time number).
+## by the active stage controller as guards register themselves at runtime
+## (the count depends on how many guard-role assets the real asset library
+## produced, not a fixed design-time number). Reset per stage by the stage
+## controller that owns it.
 var total_guards_stage1: int = 0
 var discovered_clues: Array[String] = []
 var thunder_charge: float = 0.0
@@ -21,6 +22,17 @@ var hero_name: String = "الصاعقة"
 var currency: int = 50
 var inventory: Dictionary = {}
 
+## Combat gear. owned_gear is every EquipmentCatalog item id the hero has
+## ever found/earned (permanent, unlike consumable store items); equipped_*
+## holds the currently active id per slot, empty string = nothing equipped
+## in that slot. player.gd reads get_damage_bonus()/get_defense_bonus()
+## rather than any raw stat, so future stages can add stronger gear here
+## without touching combat code.
+var owned_gear: Array[String] = [EquipmentCatalog.STARTING_OUTFIT]
+var equipped_weapon: String = ""
+var equipped_armor: String = ""
+var equipped_outfit: String = EquipmentCatalog.STARTING_OUTFIT
+
 ## Master volume, 0.0 (silent) to 1.0 (full). Applied to the engine's real
 ## Master audio bus in settings_screen.gd, not just stored as a number, so
 ## it actually controls the music/combat sound volume the user hears.
@@ -29,6 +41,8 @@ var master_volume: float = 0.8
 signal currency_changed(new_amount: int)
 signal inventory_changed
 signal settings_changed
+signal gear_changed
+signal stage_advanced(new_stage: int)
 
 const SAVE_PATH := "user://alsaeqa_save.json"
 
@@ -36,18 +50,16 @@ func _ready() -> void:
     load_game()
     _apply_master_volume()
 
-func complete_stage_if_ready() -> bool:
-    # All guards must be defeated to clear the stage — not just one
-    # designated target. They do not need to be defeated in a single burst;
-    # defeats accumulate one at a time as the hero fights through the mine,
-    # and the stage completes once the running total reaches every guard
-    # that was actually spawned.
-    if current_stage == 1 and rescued_workers >= 5 and total_guards_stage1 > 0 and defeated_slavers >= total_guards_stage1:
-        current_stage = 2
-        add_clue("Stage1_MineNetwork")
-        save_game()
-        return true
-    return false
+## Called by the active stage's controller once its own win condition is
+## met. GameState does not know what any individual stage requires — each
+## StageNController owns and checks its own conditions and calls this
+## exactly once when they are satisfied.
+func advance_to_next_stage() -> void:
+    current_stage += 1
+    total_guards_stage1 = 0
+    defeated_slavers = 0
+    save_game()
+    stage_advanced.emit(current_stage)
 
 func add_clue(clue_id: String) -> void:
     if clue_id not in discovered_clues:
@@ -85,6 +97,44 @@ func add_currency(amount: int) -> void:
     currency_changed.emit(currency)
     save_game()
 
+## Grants gear the hero found (a chest, a reward, etc.) and equips it
+## immediately — stage rewards are meant to be felt right away, not left
+## sitting unused in a menu.
+func grant_and_equip_gear(gear_id: String) -> void:
+    if gear_id not in owned_gear:
+        owned_gear.append(gear_id)
+    equip_gear(gear_id)
+
+func equip_gear(gear_id: String) -> void:
+    var gear: EquipmentCatalog.Gear = EquipmentCatalog.find_gear(gear_id)
+    if gear == null or gear_id not in owned_gear:
+        return
+    match gear.slot:
+        EquipmentCatalog.Slot.WEAPON:
+            equipped_weapon = gear_id
+        EquipmentCatalog.Slot.ARMOR:
+            equipped_armor = gear_id
+        EquipmentCatalog.Slot.OUTFIT:
+            equipped_outfit = gear_id
+    gear_changed.emit()
+    save_game()
+
+func get_damage_bonus() -> float:
+    var total := 0.0
+    for gear_id in [equipped_weapon, equipped_armor, equipped_outfit]:
+        var gear: EquipmentCatalog.Gear = EquipmentCatalog.find_gear(gear_id)
+        if gear != null:
+            total += gear.damage_bonus
+    return total
+
+func get_defense_bonus() -> float:
+    var total := 0.0
+    for gear_id in [equipped_weapon, equipped_armor, equipped_outfit]:
+        var gear: EquipmentCatalog.Gear = EquipmentCatalog.find_gear(gear_id)
+        if gear != null:
+            total += gear.defense_bonus
+    return total
+
 func set_master_volume(value: float) -> void:
     master_volume = clampf(value, 0.0, 1.0)
     _apply_master_volume()
@@ -110,7 +160,11 @@ func save_game() -> void:
         "hero_name": hero_name,
         "currency": currency,
         "inventory": inventory,
-        "master_volume": master_volume
+        "master_volume": master_volume,
+        "owned_gear": owned_gear,
+        "equipped_weapon": equipped_weapon,
+        "equipped_armor": equipped_armor,
+        "equipped_outfit": equipped_outfit
     }
     var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
     if file:
@@ -135,3 +189,8 @@ func load_game() -> void:
         var raw_inventory = parsed.get("inventory", {})
         inventory = raw_inventory if raw_inventory is Dictionary else {}
         master_volume = float(parsed.get("master_volume", 0.8))
+        var raw_owned_gear = parsed.get("owned_gear", [EquipmentCatalog.STARTING_OUTFIT])
+        owned_gear = Array(raw_owned_gear) if raw_owned_gear is Array else [EquipmentCatalog.STARTING_OUTFIT]
+        equipped_weapon = str(parsed.get("equipped_weapon", ""))
+        equipped_armor = str(parsed.get("equipped_armor", ""))
+        equipped_outfit = str(parsed.get("equipped_outfit", EquipmentCatalog.STARTING_OUTFIT))
