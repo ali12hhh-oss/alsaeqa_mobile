@@ -21,13 +21,20 @@ var hero_name: String = "الصاعقة"
 var currency: int = 50
 var inventory: Dictionary = {}
 
+## Master volume, 0.0 (silent) to 1.0 (full). Applied to the engine's real
+## Master audio bus in settings_screen.gd, not just stored as a number, so
+## it actually controls the music/combat sound volume the user hears.
+var master_volume: float = 0.8
+
 signal currency_changed(new_amount: int)
 signal inventory_changed
+signal settings_changed
 
 const SAVE_PATH := "user://alsaeqa_save.json"
 
 func _ready() -> void:
     load_game()
+    _apply_master_volume()
 
 func complete_stage_if_ready() -> bool:
     # All guards must be defeated to clear the stage — not just one
@@ -78,6 +85,20 @@ func add_currency(amount: int) -> void:
     currency_changed.emit(currency)
     save_game()
 
+func set_master_volume(value: float) -> void:
+    master_volume = clampf(value, 0.0, 1.0)
+    _apply_master_volume()
+    settings_changed.emit()
+    save_game()
+
+func _apply_master_volume() -> void:
+    var bus_index := AudioServer.get_bus_index("Master")
+    if bus_index < 0:
+        return
+    AudioServer.set_bus_mute(bus_index, master_volume <= 0.001)
+    if master_volume > 0.001:
+        AudioServer.set_bus_volume_db(bus_index, linear_to_db(master_volume))
+
 func save_game() -> void:
     var data := {
         "current_stage": current_stage,
@@ -88,7 +109,8 @@ func save_game() -> void:
         "thunder_charge": thunder_charge,
         "hero_name": hero_name,
         "currency": currency,
-        "inventory": inventory
+        "inventory": inventory,
+        "master_volume": master_volume
     }
     var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
     if file:
@@ -112,3 +134,4 @@ func load_game() -> void:
         currency = int(parsed.get("currency", 50))
         var raw_inventory = parsed.get("inventory", {})
         inventory = raw_inventory if raw_inventory is Dictionary else {}
+        master_volume = float(parsed.get("master_volume", 0.8))
