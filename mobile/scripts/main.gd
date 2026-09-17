@@ -12,9 +12,11 @@ extends Node3D
 @onready var gameplay_world: Node3D = $World
 @onready var store_button: Button = $MobileHUD/HomePanel/StoreButton
 @onready var inventory_button: Button = $MobileHUD/HomePanel/InventoryButton
+@onready var settings_button: Button = $MobileHUD/HomePanel/SettingsButton
 @onready var home_currency_label: Label = $MobileHUD/HomePanel/CurrencyLabel
 @onready var store_screen: Control = $MobileHUD/StoreScreen
 @onready var inventory_screen: Control = $MobileHUD/InventoryScreen
+@onready var settings_screen: Control = $MobileHUD/SettingsScreen
 
 var gameplay_started := false
 var home_time := 0.0
@@ -29,6 +31,7 @@ func _ready() -> void:
     start_button.pressed.connect(_start_adventure)
     store_button.pressed.connect(func(): store_screen.show_screen())
     inventory_button.pressed.connect(func(): inventory_screen.show_screen())
+    settings_button.pressed.connect(func(): settings_screen.show_screen())
     GameState.currency_changed.connect(_on_home_currency_changed)
     home_currency_label.text = "رصيدك: %d" % GameState.currency
 
