@@ -12,6 +12,7 @@ const MINIMUM_MINE_GUARDS := 7
 
 var worker_safe: Array[bool] = [false, false, false, false, false]
 var guards_defeated := 0
+var _completed := false
 
 signal stage_ready
 signal rescue_progress(current: int, required: int)
@@ -38,6 +39,11 @@ func rescue_worker(worker_index: int) -> void:
 ## Called once by each GuardEnemy in its _ready(), since the real spawn
 ## count depends on the real asset library and is not a fixed design-time
 ## number — this is how Stage1Controller learns how many guards exist.
+## NOTE: GameState.total_guards_stage1/defeated_slavers are shared,
+## generically-named "current stage guard" counters (reset by
+## GameState.advance_to_next_stage() on every transition), not literally
+## Stage-1-only despite the field name — only one stage controller is ever
+## active at a time, so this is safe without renaming the fields.
 func register_guard() -> void:
     GameState.total_guards_stage1 += 1
     guard_progress.emit(guards_defeated, GameState.total_guards_stage1)
@@ -60,6 +66,9 @@ func _safe_worker_count() -> int:
     return count
 
 func _try_complete() -> void:
+    if _completed:
+        return
     if _safe_worker_count() >= REQUIRED_WORKERS and GameState.total_guards_stage1 > 0 and guards_defeated >= GameState.total_guards_stage1:
-        if GameState.complete_stage_if_ready():
-            stage_ready.emit()
+        _completed = true
+        GameState.advance_to_next_stage()
+        stage_ready.emit()
