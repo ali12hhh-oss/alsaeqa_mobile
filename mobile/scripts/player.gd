@@ -355,7 +355,10 @@ func _resolve_attack_hits() -> void:
     query.collide_with_areas = true
     query.collide_with_bodies = true
     var hits := space.intersect_shape(query, 24)
-    var damage := heavy_damage if _attack_heavy else light_damage
+    # Weapon/armor/outfit bonuses from GameState (see EquipmentCatalog) are
+    # added on top of the base swing damage, so stage rewards (a better
+    # blade, armor) actually make combat feel different, not just cosmetic.
+    var damage := (heavy_damage if _attack_heavy else light_damage) + GameState.get_damage_bonus()
     for hit in hits:
         var target = hit.get("collider")
         if target == null or _attack_targets.has(target):
