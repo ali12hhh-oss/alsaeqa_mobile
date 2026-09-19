@@ -1,66 +1,218 @@
-# ALSAEQA — Project Continuity / Canonical State
+# الصاعقة موبايل — ALSAEQA Mobile | سجل الاستمرارية الرسمي
 
-Canonical repository: ali12hhh-oss/alsaeqa
-Project: الصاعقة / ALSAEQA
-Engine: Unreal Engine 5
-Primary target: Android
-Architecture: C++ gameplay foundation + Blueprint/Sequencer authored presentation.
-Rule: one continuous project; no V1/V2/V3 forks; no primitive placeholders as final art.
+هذا الملف هو سجل الاستمرارية الرسمي لمشروع **الصاعقة موبايل — ALSAEQA Mobile**، ويجب قراءته قبل متابعة العمل.
 
-## Stage 1 — Chains in the Mine
-Mandatory independent gates:
-- RescueWorkers = 5 distinct workers
-- DefeatSlavers = 1 designated Stage 1 slaver
+## 1. الهوية الرسمية
+- الاسم العربي: **الصاعقة موبايل**.
+- الاسم الإنجليزي: **ALSAEQA Mobile**.
+- المستودع: `ali12hhh-oss/alsaeqa_mobile`.
+- المشروع الأصلي المرجعي: `ali12hhh-oss/alsaeqa`.
+- الهدف: لعبة Android ثلاثية الأبعاد Mobile-first.
+- المشروع واحد مستمر؛ لا V1/V2/V3.
+- نحافظ على قصة الصاعقة وهوية اللعبة والمراحل والمشاهد السينمائية والمشاهد القتالية وتطور البطل والرفيقة والقدرات والمركوبات.
+- لا تُعتبر الأصول البدائية أو الـBlockout رسومات نهائية.
 
-Enemy-force standard:
-- The mine must contain **at least 7 enemies/slavers**, so the hostile force is clearly larger than the five workers being rescued.
-- Seven is the production minimum, not a requirement to kill seven enemies.
-- Exactly one or more specifically configured Stage 1 objective slavers may report the `DefeatSlavers` gate, but the mandatory gate remains `DefeatSlavers = 1`.
-- The remaining enemies are supporting guards, patrols, responders and pursuit/combat units that create pressure and escalation without becoming an extra progression gate.
-- Enemy placement must be distributed across the mine rather than stacking the whole force in one room. The encounter rhythm should alternate between discovery/stealth pressure, rescue interaction, pursuit/combat, traversal and the final confrontation.
+## 2. ما تم تأسيسه فعليًا في نسخة الموبايل
+- أساس مشروع Godot 4 داخل `mobile/`.
+- إعداد Android وملف التصدير وWorkflow للبناء عبر GitHub Actions.
+- حالة اللعبة والتقدم والحفظ الأساسي.
+- سجل المراحل 1–70.
+- مدير المشاهد السينمائية ونقاط القصة.
+- أساس حركة البطل والكاميرا والتحكم اللمسي.
+- أساس Stage 1 وأهداف الإنقاذ والمواجهة.
+- طبقة ربط الأصول الحقيقية ومخزونها.
+- تنزيل حزم الأصول من Releases للمستودع الأصلي مع SHA-256.
+- استخراج المصدر قبل التحويل.
+- مسار تحويل النماذج إلى GLB مع الحفاظ على الخامات والـskins ومحاولة الحفاظ على الأنيميشنات المضمنة.
 
-Final sequence: awakening aftermath → return to mine → discover surviving workers → rescue 1 → enemy response → rescue 2 → rescue 3 → escalation → rescue 4 → rescue 5 → defeat designated slaver → first mine-network clue → automatic Stage 1→2 transition.
+## 3. الأصول الحقيقية وقابلية التعديل
+المصدر الرسمي للأصول هو Releases في `ali12hhh-oss/alsaeqa`، وليس افتراض وجود `.uasset/.umap` داخل مستودع الموبايل.
 
-Five workers use distinct authored methods: Break Chain, Open Cage, Release Lift, Cut Binding, Escort Out. Each has a stable WorkerId and optional RescueSequenceTag.
-Each designated slaver has stable StageOneSlaverId. Death is authoritative and reports once.
+الحزم المسجلة:
+- `ALSAEQA_REAL_ASSETS.zip`
+- `ALSAEQA_EXTRA_MONSTERS.zip.zip`
+- `ALSAEQA_EXTRA_ULTIMATE_MODULAR_RUINS.zip.zip`
 
-## Stage 1 persistence — implemented
-ALSAEQASaveGame stores RescuedStageOneWorkerIds and DefeatedStageOneSlaverIds.
-ALSAEQASaveManager exposes record/query/count APIs.
-A previously rescued worker reloads as rescued and cannot count again.
-A previously defeated designated slaver reloads as dead and cannot count again.
+ملفات الربط والتحويل:
+- `mobile/assets/asset_manifest.json`
+- `mobile/assets/README.md`
+- `Tools/Assets/sync_real_assets.py`
+- `Tools/Assets/blender_convert.py`
 
-## Current committed foundation
-- 1–70 stage registry and progression validation.
-- Automatic stage flow with delayed transition.
-- Stage objective component with Stage 1 5+1 gates.
-- Worker rescue interaction and five presentation methods.
-- Stable Stage 1 worker/slaver persistence.
-- Designated slaver death linkage.
-- First Stage 1 clue unlock when both gates complete.
-- Automatic Stage 1→2 transition and cinematic hooks.
-- Forward interaction input (E).
-- Cinematic action moments and Blueprint story-beat hook.
-- Real-asset import/release documentation and primitive-fallback prohibition.
+**القاعدة:** المصدر الحقيقي لا يُستبدل بنتيجة مسطحة. يمكن تعديل المصدر ثم إعادة تشغيل التحويل. عند استبدال أصل، يحافظ على الـlogical asset ID ما دام الدور الوظيفي نفسه. لا تُعتبر طبقة الأصول مكتملة حتى يتم ربط الأصول فعليًا بالمشاهد والشخصيات والأنيميشن.
 
-## Stage 1 production layer still requiring Unreal asset authoring
-The remaining work that cannot be honestly completed through source-only repository edits is placement and wiring inside the actual Unreal level: five distributed worker locations, **at least seven distributed mine enemies**, real cages/chains/lift/bindings, rescue animations, camera/Sequencer shots, VFX/audio, and coordinated enemy encounter choreography. These require the real binary .uasset/.umap content and an Unreal build/editor environment.
+## 4. Stage 1 — Chains in the Mine
+### البوابات الإلزامية
+- `RescueWorkers = 5` عمال مختلفين.
+- `DefeatSlavers = 1` سلافر مخصص لهدف المرحلة.
 
-## Next engineering queue
-1. Stage 1 enemy escalation/encounter orchestration.
-2. Data-drive later-stage objectives.
-3. Animation-notify melee hit windows.
-4. Real climbing/ledge traversal and IK fall rescue.
-5. Wind/environment reactions.
-6. Complete ThunderBeast Crossing/Sense/Storm Charge.
-7. Companion AI/combat/rescue/persistence.
-8. Dialogue/quest/event orchestration and Sequencer.
-9. Broader save persistence for story/world/mount states.
-10. Real asset mapping/import.
-11. Android optimization and actual UE build verification.
+### القوة المعادية
+- يجب أن يحتوي المنجم على **7 أعداء/سلافرات على الأقل**، أي أكثر من العمال الخمسة.
+- السبعة حد إنتاجي أدنى، وليست مهمة قتل سبعة.
+- واحد على الأقل من الأعداء يرفع بوابة `DefeatSlavers`؛ البقية حراس ودوريات ومستجيبون ومطاردون لصنع الضغط والتصعيد.
+- يجب توزيعهم في أنحاء المنجم وليس تجميعهم في غرفة واحدة.
 
-## Continuity protocol
-At every new chat: read this file, Docs/ALSAEQA_MASTER_PROJECT_BIBLE.md, Docs/DEVELOPMENT_RULES.md, inspect latest relevant commits/files, continue from the highest unfinished item, and never recreate completed systems. After meaningful implementation, update this file.
+### التسلسل
+استيقاظ البطل بعد الانهيار → العودة للمنجم → اكتشاف العمال → إنقاذ 1 → استجابة الأعداء → إنقاذ 2 → إنقاذ 3 → تصعيد → إنقاذ 4 → إنقاذ 5 → هزيمة السلافر المخصص → كشف أول دليل → الانتقال التلقائي إلى Stage 2.
 
-## Quality gate
-No feature is done because a class or document exists. Runtime connection, failure safety, persistence implications, Android scalability and Blueprint/asset integration must be considered. Never claim a UE build succeeded without an actual build result.
+طرق الإنقاذ الخمس: Break Chain، Open Cage، Release Lift، Cut Binding، Escort Out. لكل عامل WorkerId ثابت، ويُحتسب الإنقاذ عند وصوله إلى منطقة الأمان.
+
+## 5. حالة الميزات: مكتمل / جزئي / غير مكتمل
+
+### مؤسس أو منفذ كأساس
+- بنية مشروع الموبايل.
+- نظام المراحل 1–70.
+- أساس الحفظ والتقدم.
+- أساس الحركة والكاميرا والتحكم اللمسي.
+- أساس السينمائيات ونقاط القصة.
+- أساس Stage 1 والأهداف.
+- خط CI للموبايل.
+- نظام Manifest وتنزيل وفحص الأصول الحقيقية.
+- نظام تحويل المصدر إلى GLB.
+- **مرحلة التطوير 1 — Character Base: مكتملة بعد البناء الناجح.**
+- **مرحلة التطوير 2 — Character Movement: مكتملة بعد البناء الناجح.**
+
+### جزئي ويحتاج ربطًا وإخراجًا فعليًا
+- ربط كل أصل حقيقي بالشخصية/البيئة/السلاح/المركوبة/الوحش المناسب.
+- استبدال Blockout بالأصول النهائية.
+- ربط الأنيميشن الحقيقي بالحركة والقتال والإنقاذ.
+- القتال المتقدم وردود الضربات.
+- AI الأعداء والرفيقة.
+- المشاهد السينمائية النهائية والكاميرات والصوت وVFX.
+- بناء Stage 1 النهائي بصريًا وGameplay.
+
+### غير مكتمل
+- نقل جميع أنظمة Unreal المهمة إلى النسخة المحمولة.
+- أهداف Gameplay فعلية للمراحل 2–70.
+- تسلق وLedge Traversal وIK للإنقاذ والسقوط.
+- نظام الرياح وتأثيرها على البيئة والملابس والشعر والرمال.
+- ThunderBeast: Lightning Crossing وThunder Sense وتصحيح Storm Charge وإكمال التكامل.
+- الحوار والمهام والأحداث المترابطة.
+- الحفظ الكامل لحالة القصة والعالم والرفيقة والإنقاذ والمركوبات والاكتشافات.
+- تحسين Android CPU/GPU/Memory ومستويات الجودة.
+- اختبار APK على جهاز Android حقيقي.
+
+## 6. ما تم في مرجع Unreal وما يجب فهمه
+المشروع الأصلي يحتوي على أساسات C++/Blueprint مهمة للحركة، القتال، الرعد، الصحة والإصابات والموت، الركوب، القدرات، التقدم، الأهداف، الإنقاذ والسينمائيات. هذه الأساسات **مرجع** وليست دليلًا على اكتمال النسخة المحمولة. يجب نقل كل نظام مطلوب إلى Godot وربطه واختباره بدل الادعاء بأنه انتقل تلقائيًا.
+
+## 7. قواعد الاستكمال
+1. لا تعِد تنفيذ ما تم إنجازه.
+2. لا تضف Placeholder كفن نهائي.
+3. افحص الملفات الحالية قبل التعديل.
+4. حافظ على IDs وحالة الحفظ عند ربط الأصول.
+5. أي ميزة بلا runtime path آمن لا تُعتبر مكتملة.
+6. لا تقل إن البناء ناجح إلا بعد نتيجة GitHub Actions فعلية.
+7. حافظ على هوية الصاعقة في كل تعديل بصري أو قصصي.
+8. الأصول الحقيقية يجب أن تبقى قابلة لإعادة التعديل والتحويل.
+9. لا تُدخل ملفات ضخمة في Git history لمجرد نسخ Release؛ استخدم خط الأصول المعتمد.
+10. لا تنشئ ملفًا موازيًا لوظيفة موجودة؛ وسّع النظام canonical الموجود بعد فحصه.
+
+## 8. ترتيب الاستكمال
+1. إكمال ربط الأصول الحقيقية بالمشروع والمشاهد.
+2. بناء Stage 1 بصريًا وGameplay بشكل نهائي.
+3. ربط الأنيميشن والصوت وVFX والكاميرات السينمائية.
+4. إكمال القتال والـAI والحركة المتقدمة.
+5. تحويل أهداف المراحل 2–70 إلى Gameplay فعلي.
+6. إكمال الرفيقة والمركوبات وThunderBeast.
+7. الحفظ الكامل.
+8. تحسين Android.
+9. بناء APK واختباره فعليًا.
+
+## 9. بروتوكول الاستمرارية
+في أي جلسة جديدة: اقرأ هذا الملف، ثم `Docs/ALSAEQA_MASTER_PROJECT_BIBLE.md` و`Docs/DEVELOPMENT_RULES.md` و`mobile/CONVERSION_STATUS.md`، وافحص آخر commits والملفات قبل التنفيذ. أكمل أعلى بند غير مكتمل ولا تنشئ نسخة موازية.
+
+## 10. تعريف الإنجاز
+وجود الوثيقة أو السكربت وحده لا يعني اكتمال الميزة. الإنجاز يعني اتصال runtime، معالجة أخطاء آمنة، حفظ/استرجاع عند الحاجة، توافق Android، وربط حقيقي بالأصول والأنيميشن والصوت وVFX والعرض السينمائي.
+
+**الاسم الرسمي المعتمد: الصاعقة موبايل — ALSAEQA Mobile.**
+
+## 11. سجل الجلسات السابقة
+تمت مراجعة مستودع **alsaeqa_mobile فقط**، مع فحص وثائق الاستمرارية، بنية نسخة الموبايل، ملفات المشهد والسكربتات، طبقة الأصول، ومسار CI. تم تصحيح مسار SHA-256 للأصول، وتثبيت تحويل المصدر الحقيقي إلى GLB، ثم تأسيس Character Base وCharacter Movement داخل النظام canonical الموجود.
+
+## 13. مرحلة التطوير 4 — Real Asset Integration
+### الحالة
+مكتملة — تم اجتياز التحقق الكامل والبناء والتصدير Android بنجاح.
+
+### ما تم إنجازه في بداية المرحلة
+- تعزيز النظام canonical الموجود في `mobile/scripts/real_asset_world.gd` بدل إنشاء طبقة ربط جديدة.
+- إضافة تتبع تغطية الأدوار المنطقية للأصول المحولة: hero، workers، guards، beasts، environment.
+- جعل عدد أصول البيئة قابلًا للضبط من نفس النظام الموجود.
+- تسجيل الأدوار التي لا تملك مرشحين محولين بدل الفشل الصامت.
+- الحفاظ على مبدأ أن الأصول الحقيقية المصدريّة هي المرجع، وأن GLB ناتج تحويل قابل لإعادة الإنشاء.
+
+### إغلاق المرحلة
+- تم اجتياز Download/Verify للأصول الحقيقية.
+- تم فحص أرشيفات الأصول وZIPs المتداخلة.
+- تم تحويل المصادر القابلة للتحرير إلى Mobile GLB بنجاح.
+- تم التحقق من مشروع Godot بنجاح.
+- تم تصدير Android APK بنجاح.
+- تم رفع البناء وفهرس الأصول القابل للتحرير بنجاح.
+- Run 34312742424 / Build 123: SUCCESS.
+- Commit: 6cc7cb171c26064ac853729533745d89c9db7440.
+- المرحلة الرابعة أُغلقت رسميًا؛ أي ربط قصصي تفصيلي لاحق سيُعامل كجزء من المراحل اللاحقة وليس كعمل متبقٍ من المرحلة الرابعة.
+
+## 12. مرحلة التطوير 3 — Animation System
+### نطاق المرحلة
+مرحلة التطوير 3 ليست Stage 3 من القصة؛ هي مرحلة تقنية لبناء طبقة الأنيميشن الفعلية للبطل داخل نسخة Godot.
+
+### ما تم تنفيذه
+- توسيع `mobile/scripts/player.gd` الموجود بدل إنشاء Animation Controller مكرر.
+- اكتشاف `Skeleton3D` و`AnimationPlayer` من البطل الحقيقي المرفق وقت التشغيل.
+- قراءة أسماء الأنيميشنات الموجودة فعليًا من `AnimationPlayer` دون اختراع ملفات أنيميشن بديلة.
+- ربط حالات الحركة بالأنيميشن الحقيقي عند توفره: Idle، Walk، Jog/Run، Sprint، Crouch/Stealth، Listen، Roll/Dodge، Airborne/Fall، Landing.
+- إضافة مسار أنيميشن للأفعال: Light Attack، Heavy Attack، Thunder Charge، Thunder Release عند توفر المقاطع المقابلة في الأصل الحقيقي.
+- إضافة blending قصير للحركات الانتقالية لتقليل القطع الحاد بين الحالات.
+- الحفاظ على قابلية إعادة التحويل من المصدر؛ لا يتم تسطيح الأنيميشنات أو نسخها إلى ملفات موازية داخل المشروع.
+- إضافة معالجة آمنة في حال عدم وجود `AnimationPlayer` أو عدم وجود مقطع مطابق، بحيث لا تتعطل حركة البطل أو عملية البناء.
+
+### قاعدة أسماء الأنيميشن
+الربط مرن ومبني على أسماء المقاطع الفعلية؛ يبحث النظام أولًا عن تطابق كامل ثم تطابق داخل الاسم. لذلك يمكن استخدام تسميات مثل `Idle` أو `Armature|Idle` أو `Idle_01` دون تغيير النظام canonical، مع أولوية للتطابق الأدق.
+
+### ما لا يُعلن مكتملًا بعد
+- لا يُعتبر نظام الأنيميشن إنتاجيًا نهائيًا إلا بعد نجاح CI على commit المرحلة وتشغيل المشروع مع أصل بطل حقيقي يحتوي على المقاطع المناسبة.
+- AnimationTree/BlendSpace/Motion Matching المتقدم وIK وربط hit windows الدقيقة للقتال تبقى ضمن مراحل لاحقة بعد إثبات المقاطع الأساسية على الأصل الحقيقي.
+- أنيميشنات الإنقاذ والتسلق والسقوط والرفيقة والأعداء تحتاج ربطًا خاصًا عند بناء تلك الأنظمة.
+
+### بوابة إغلاق المرحلة
+لا تُغلق مرحلة التطوير 3 إلا بعد اجتياز GitHub Actions لخط التحقق والتحويل والتصدير Android دون أخطاء، ثم تُحدّث هذه الوثيقة بنتيجة البناء الفعلية.
+
+### تحديث المرحلة الرابعة
+- أضيف ربط فعلي لدور الوحوش/المركوبات من مكتبة الأصول المحولة، مع وضعيات توزيع أولية قابلة للاستبدال لاحقًا بالمواقع القصصية النهائية.
+- لم تُنشأ ملفات أصول بديلة؛ الربط يعتمد على `asset_manifest.json` وملفات GLB الناتجة من المصدر الحقيقي.
+
+## 14. مرحلة التطوير 5 — Combat System
+### الحالة
+قيد التنفيذ.
+### البداية
+- تم اعتماد `mobile/scripts/player.gd` كنظام الشخصية القتالي canonical بدل إنشاء controller جديد.
+- تمت إضافة توقيت هجمات خفيفة/ثقيلة، نافذة إصابة، cooldown، وإدارة combo من ثلاث ضربات مع fallback لأسماء الأنيميشن الموجودة.
+- تم الحفاظ على التكامل مع CinematicDirector الموجود.
+- لم يتم اعتبار الضرر/الأعداء/الأسلحة مكتملين بعد؛ هذه أجزاء لاحقة من المرحلة الخامسة.
+
+## 15. إصلاحات جلسة تشخيص T-Pose والمادة الرمادية ودور Worker
+### السياق
+تم تشخيص هذه المشاكل عبر لقطات Runtime فعلية (`ALSAEQA-runtime-visual-inspection`) وسجل خطوة CI فعلي (`Attach real Universal Animation Library to canonical hero`) قدّمهما المستخدم مباشرة، وليس افتراضًا نظريًا.
+
+### 1) المادة الرمادية بدون Texture
+- السبب: استيراد FBX من حزم Unity يترك أحيانًا Image Texture node موجود لكن غير موصول بمدخل Base Color في Principled BSDF.
+- الإصلاح: دالة `repair_material_base_color_links()` أُضيفت داخل `Tools/Assets/blender_convert.py`، تربط أفضل Image Texture مرشح (تفضيل albedo/diffuse/color على normal/roughness) بمدخل Base Color تلقائيًا قبل التصدير، مع طباعة كل إصلاح بسجل الـCI.
+- **لم يُتحقق بعد** أن هذا الإصلاح انعكس فعليًا على آخر build مرئي (لقطة runtime بعد الإصلاحين التاليين لسا تُظهر جسمًا رماديًا)؛ يحتاج تأكيد commit/run محدد قبل اعتباره مغلقًا.
+
+### 2) دور "Worker" بدون أصول مطابقة
+- السبب: لا توجد حزمة مخصصة لعمال داخل حزم الأصول الحقيقية المتاحة حاليًا.
+- الإصلاح المؤقت: `real_asset_world.gd` يعيد استخدام جسد البطل الأساسي كبديل، **مع تسجيل تحذير صريح بالسجل** أنه بديل وليس أصلًا مخصصًا نهائيًا (متوافق مع قاعدة منع البدائل الصامتة).
+- هذا **لا يُغلق** بند "ربط كل أصل حقيقي بالدور المناسب"؛ يبقى مفتوحًا حتى تتوفر حزمة عمال حقيقية أو يُتخذ قرار تصميمي بديل.
+
+### 3) الجذر الحقيقي لمشكلة T-Pose (تم حله)
+- تم الحصول على نص سجل CI الفعلي لخطوة `Attach real Universal Animation Library to canonical hero`.
+- التطابق العظمي بين هيكل البطل ومكتبة الحركات كان **100% (65/65 عظمة)**، ووُجدت 43 حركة متوافقة فعليًا — منطق المطابقة لم يكن فيه أي خلل.
+- الفشل الفعلي: `TypeError: NlaStrips.new(): expected an int type, not float` في السطر الذي يمرر `float(copied.frame_range[0])` كمعامل بداية لـ `track.strips.new()`. Blender's API يتطلب int لهذا المعامل تحديدًا.
+- بسبب `set -euo pipefail` بدون `continue-on-error`، فشل هذا أدى نظريًا لفشل الخطوة، لكن الشخصية استمرت تُشحن بالوضع الساكن السابق (Static-backup لم يُستبدل لأن الاستبدال يحدث بعد التصدير الناجح فقط) — وهذا اتسق مع ما ظهر في لقطات Runtime السابقة.
+- **الإصلاح:** تحويل `float(copied.frame_range[0])` إلى `int(copied.frame_range[0])`. تم الدفع لهذا الفرع.
+- **تأكيد جزئي من المستخدم:** بعد الإصلاح، لقطة Runtime أظهرت البطل بوضعية غير T-Pose (ذراعين مثنيين، رجل للأمام) مع فرق بكسل فعلي طفيف بين إطارين متتاليين (تحقق عبر مقارنة بكسل مباشرة، ١٥٨٢١ بكسل مختلف) — يتوافق مع حركة idle خفيفة بشاشة القائمة الرئيسية، وليس تجمّدًا كاملاً. **لم يُتحقق بعد** من تشغيل حركة مشي/جري كاملة أثناء اللعب الفعلي (خارج القائمة)، ولا من إصلاح المادة الرمادية بنفس الـcommit.
+
+### بقي مفتوحًا بعد هذه الجلسة
+- تأكيد أن إصلاح المادة (repair_material_base_color_links) فعّال على build يتضمنه فعليًا.
+- اختبار الحركة أثناء Gameplay الفعلي (مشي/جري/قتال) وليس فقط شاشة القائمة.
+- دور Worker يحتاج حزمة أصول حقيقية مخصصة أو قرار تصميمي نهائي، وليس فقط fallback.
+- كل بند "غير مكتمل" و"جزئي" المذكور بالقسم 5 أعلاه لسا كما هو؛ هذه الجلسة لم تغلق أي مرحلة تطوير رسمية جديدة، فقط أصلحت أعطالًا داخل المرحلتين 3 و4 القائمتين.
