@@ -19,11 +19,12 @@ signal rescue_progress(current: int, required: int)
 signal guard_progress(current: int, required: int)
 
 func _ready() -> void:
-    # WorkerCaptive and GuardEnemy instances look up this controller via
-    # get_tree().get_first_node_in_group("stage1_controller") rather than a
-    # hardcoded node path, since they are spawned dynamically by
-    # real_asset_world.gd and do not have a fixed position in the scene tree.
+    # WorkerCaptive identifies this controller via the stage1_controller
+    # group specifically (workers only exist in Stage 1). GuardEnemy looks
+    # up the generic stage_controller group instead, since that script is
+    # shared across every stage's guards.
     add_to_group("stage1_controller")
+    add_to_group("stage_controller")
 
 func rescue_worker(worker_index: int) -> void:
     if worker_index < 0 or worker_index >= REQUIRED_WORKERS:
