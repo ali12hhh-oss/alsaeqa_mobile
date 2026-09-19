@@ -3,6 +3,12 @@ extends Node3D
 ## Runtime bridge for the real ALSAEQA asset library.
 ## Source packs remain editable; CI converts source models to GLB and this
 ## bridge binds logical roles without baking asset data into gameplay code.
+## Stage-aware: the hero body is attached exactly once and persists across
+## stages (its outfit/weapon visuals update through equipped gear, not by
+## re-instantiating it); everything else (workers, guards, beasts,
+## environment, chests) is cleared and rebuilt whenever GameState reports a
+## stage change, since each stage is a different place with different
+## content.
 
 const ROOT := "res://assets/converted"
 const ROLE_PATTERNS := {
@@ -29,6 +35,7 @@ const CANONICAL_HERO_HINTS := [
 
 const WORKER_CAPTIVE_SCRIPT := preload("res://scripts/worker_captive.gd")
 const GUARD_ENEMY_SCRIPT := preload("res://scripts/guard_enemy.gd")
+const WEAPON_CHEST_SCRIPT := preload("res://scripts/weapon_chest.gd")
 
 @export var worker_count := 5
 @export var guard_count := 9
@@ -42,18 +49,78 @@ var _spawned_roles: Dictionary = {}
 # loudly rather than silently spawning zero instances or matching the wrong
 # asset. Tracked per-role so the coverage report is accurate for each.
 var _role_uses_body_fallback: Dictionary = {}
+var _hero_bound := false
+var _cached_assets: Array[String] = []
 
 func _ready() -> void:
-    var assets := _find_glb_files(ROOT)
-    if assets.is_empty():
+    _cached_assets = _find_glb_files(ROOT)
+    if _cached_assets.is_empty():
         push_error("ALSAEQA real asset library is missing from the mobile build")
         return
-    _spawn_role_variants("hero", assets, 1, Vector3.ZERO, 2.0)
-    _spawn_role_variants("worker", assets, worker_count, Vector3(-10, 0, 4), 1.9)
-    _spawn_role_variants("guard", assets, guard_count, Vector3.ZERO, 2.0)
-    _spawn_role_variants("beast", assets, 4, Vector3(18, 0, 8), 2.4)
-    _spawn_role_variants("environment", assets, environment_count, Vector3.ZERO, 8.0)
-    _report_role_coverage(assets)
+    _ensure_hero_bound()
+    GameState.stage_advanced.connect(_on_stage_advanced)
+    rebuild_for_stage(GameState.current_stage)
+
+func _on_stage_advanced(new_stage: int) -> void:
+    rebuild_for_stage(new_stage)
+
+## Spawns/binds the canonical hero exactly once. The hero body ($Hero in
+## Main.tscn) persists for the entire game; only its equipped gear visuals
+## change between stages, so it must never be re-instantiated on a stage
+## rebuild the way role content below is.
+func _ensure_hero_bound() -> void:
+    if _hero_bound:
+        return
+    _spawn_role_variants("hero", _cached_assets, 1, Vector3.ZERO, 2.0)
+    _hero_bound = true
+
+## Clears every previously spawned role instance (workers, guards, beasts,
+## environment, chests — anything parented under this node) and rebuilds
+## the content for the given stage. The hero itself is untouched, since it
+## lives under $Hero, a sibling of this node, not a child of it.
+func rebuild_for_stage(stage: int) -> void:
+    for child in get_children():
+        child.queue_free()
+    _spawned_roles.clear()
+    _role_uses_body_fallback.clear()
+
+    match stage:
+        1:
+            _build_stage_1()
+        2:
+            _build_stage_2()
+        _:
+            push_warning("real_asset_world.gd has no world content defined yet for stage %d — leaving the area empty rather than reusing Stage 1/2 content, since neither is what this stage is meant to look like." % stage)
+    _report_role_coverage(_cached_assets)
+
+func _build_stage_1() -> void:
+    _spawn_role_variants("worker", _cached_assets, worker_count, Vector3(-10, 0, 4), 1.9)
+    _spawn_role_variants("guard", _cached_assets, guard_count, Vector3.ZERO, 2.0)
+    _spawn_role_variants("beast", _cached_assets, 4, Vector3(18, 0, 8), 2.4)
+    _spawn_role_variants("environment", _cached_assets, environment_count, Vector3.ZERO, 8.0)
+
+## Stage 2 ("The Hidden Mark"): a smaller rocky stretch just outside the
+## mine, not the forest (that opens in Stage 6 per the project bible) — a
+## handful of environment pieces for rocky/rubble dressing, two guards, and
+## the weapon cache chest.
+func _build_stage_2() -> void:
+    _spawn_role_variants("guard", _cached_assets, 2, Vector3(6, 0, -4), 2.0)
+    _spawn_role_variants("environment", _cached_assets, 14, Vector3.ZERO, 8.0)
+    _spawn_weapon_chest()
+
+## HONEST GAP: no verified real "chest" or "crate" prop from the downloaded
+## packs has been identified yet (would need to inspect the Fantasy Props
+## kit's exact file list to pick one correctly, per the project's rule
+## against guessing asset paths). Rather than fake a primitive box mesh as
+## a stand-in, this is an invisible interact volume for now — the "press to
+## open" prompt still works, but there's nothing to see until a real prop
+## path is confirmed and wired in here.
+func _spawn_weapon_chest() -> void:
+    var chest := Node3D.new()
+    chest.name = "WeaponChest"
+    chest.set_script(WEAPON_CHEST_SCRIPT)
+    add_child(chest)
+    chest.position = Vector3(3, 0, 7)
 
 func _find_glb_files(path: String) -> Array[String]:
     var result: Array[String] = []
@@ -370,13 +437,10 @@ func _role_position(role: String, index: int, count: int, origin: Vector3) -> Ve
     var col := index % 4
     return origin + Vector3(float(col - 1) * 12.0, 0, float(row - 1) * 10.0)
 
-## Places environment pieces around an enclosed mine boundary (perimeter
-## walls plus an inner scatter ring for props/rubble) instead of a plain
-## open grid, so the real modular dungeon/ruins assets read as an actual
-## contained space. Boundary matches the composition the earlier primitive
-## blockout used (46x34 floor, walls at x=+-22 / z=+-15) since that
-## footprint was already sized to the hero/worker/guard placement radii
-## used elsewhere in this file.
+## Places environment pieces around an enclosed boundary (perimeter walls
+## plus an inner scatter ring for props/rubble) instead of a plain open
+## grid, so the real modular dungeon/ruins/rock assets read as an actual
+## contained space, for both Stage 1's mine and Stage 2's rocky ambush spot.
 ##
 ## HONEST LIMITATION: this places whole environment GLBs at even intervals
 ## along the boundary by their bounding-box center; it does not know each
