@@ -69,8 +69,6 @@ bool UALSAEQASaveManager::SaveCheckpoint(FName CheckpointId, FName RegionId, int
     return SaveProgress();
 }
 
-bool UALSAEQSAStageOneSaveManagerPlaceholder(){ return true; }
-
 bool UALSAEQASaveManager::RespawnAtLastCheckpoint()
 {
     if (!EnsureSaveData() || SaveData->LastCheckpoint.CheckpointId.IsNone()) return false;
@@ -145,4 +143,24 @@ int32 UALSAEQASaveManager::GetStageOneWorkersRescuedCount() const
 int32 UALSAEQASaveManager::GetStageOneSlaversDefeatedCount() const
 {
     return SaveData ? SaveData->DefeatedStageOneSlaverIds.Num() : 0;
+}
+
+bool UALSAEQASaveManager::MarkOpeningCinematicCompleted()
+{
+    if (!EnsureSaveData()) return false;
+    if (SaveData->bOpeningCinematicCompleted) return true;
+    SaveData->bOpeningCinematicCompleted = true;
+    return SaveProgress();
+}
+
+bool UALSAEQASaveManager::HasCompletedOpeningCinematic() const
+{
+    return SaveData && SaveData->bOpeningCinematicCompleted;
+}
+
+bool UALSAEQASaveManager::ResetOpeningCinematicCompleted()
+{
+    if (!EnsureSaveData()) return false;
+    SaveData->bOpeningCinematicCompleted = false;
+    return SaveProgress();
 }

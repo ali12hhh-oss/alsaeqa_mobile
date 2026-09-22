@@ -97,10 +97,13 @@ void UALSAEQAMainMenuWidget::OnNewJourneyClicked()
     if (!GetGameInstance()) return;
     if (UALSAEQAMainMenuSubsystem* Menu = GetGameInstance()->GetSubsystem<UALSAEQAMainMenuSubsystem>())
     {
-        // Never overwrite an existing journey without explicit confirmation.
+        // Never overwrite an existing journey without explicit confirmation. Previously
+        // this branch returned silently, leaving the button feeling broken; it now
+        // asks the Blueprint presentation layer to show the confirmation dialog, which
+        // is expected to call Menu->ConfirmNewJourney() if the player accepts.
         if (Menu->RequiresNewJourneyConfirmation())
         {
-            // Blueprint presentation owns the confirmation dialog and may call ConfirmNewJourney().
+            RequestNewJourneyConfirmation();
             return;
         }
         Menu->BeginNewJourney(false);

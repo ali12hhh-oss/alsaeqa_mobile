@@ -25,7 +25,10 @@ public:
     void ApplyCinematicMenuState(const FALSAEQAMainMenuState& State);
 
     UFUNCTION(BlueprintImplementableEvent, Category="ALSAEQA|Main Menu|Presentation")
-    void PlayMenuTransition(EALSAEQAMainMenuAction Action);\n\n    UFUNCTION(BlueprintImplementableEvent, Category="ALSAEQA|Main Menu|Presentation")\n    void RequestNewJourneyConfirmation();
+    void PlayMenuTransition(EALSAEQAMainMenuAction Action);
+
+    UFUNCTION(BlueprintImplementableEvent, Category="ALSAEQA|Main Menu|Presentation")
+    void RequestNewJourneyConfirmation();
 
 protected:
     virtual void NativeConstruct() override;

@@ -42,4 +42,9 @@ public:
 
     UPROPERTY(BlueprintReadWrite, SaveGame, Category="ALSAEQA|Mounts")
     TArray<FALSAEQAMountProfile> TamedMountProfiles;
+
+    // Set only by UALSAEQACinematicDirector::FinishOpeningCinematic(), never on start,
+    // so an interrupted opening can never be mistaken for a completed one.
+    UPROPERTY(BlueprintReadWrite, SaveGame, Category="ALSAEQA|Cinematics")
+    bool bOpeningCinematicCompleted = false;
 };

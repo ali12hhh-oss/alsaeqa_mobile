@@ -50,6 +50,12 @@ public:
     UFUNCTION(BlueprintPure, Category="ALSAEQA|Stage1") int32 GetStageOneWorkersRescuedCount() const;
     UFUNCTION(BlueprintPure, Category="ALSAEQA|Stage1") int32 GetStageOneSlaversDefeatedCount() const;
 
+    // Persisted opening-cinematic completion. Only UALSAEQACinematicDirector's
+    // FinishOpeningCinematic() should call MarkOpeningCinematicCompleted().
+    UFUNCTION(BlueprintCallable, Category="ALSAEQA|Cinematics") bool MarkOpeningCinematicCompleted();
+    UFUNCTION(BlueprintPure, Category="ALSAEQA|Cinematics") bool HasCompletedOpeningCinematic() const;
+    UFUNCTION(BlueprintCallable, Category="ALSAEQA|Cinematics") bool ResetOpeningCinematicCompleted();
+
 private:
     static const FString SaveSlotName;
     static constexpr int32 FamilySearchStartStage = 25;
