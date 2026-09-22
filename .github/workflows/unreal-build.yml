@@ -64,43 +64,43 @@ jobs:
           set -euo pipefail
           mkdir -p Downloads
           python3 - <<'PY'
-import json, hashlib, urllib.request, os, sys
+          import json, hashlib, urllib.request, os, sys
 
-with open("Tools/Assets/assets-manifest.json") as f:
-    manifest = json.load(f)
+          with open("Tools/Assets/assets-manifest.json") as f:
+              manifest = json.load(f)
 
-tag = manifest["release_tag"]
-repo = os.environ.get("GITHUB_REPOSITORY", "ali12hhh-oss/alsaeqa_mobile")
-# Assets were originally published under ali12hhh-oss/alsaeqa's release;
-# fall back there if not found in this repo's own releases.
-candidate_repos = [repo, "ali12hhh-oss/alsaeqa"]
+          tag = manifest["release_tag"]
+          repo = os.environ.get("GITHUB_REPOSITORY", "ali12hhh-oss/alsaeqa_mobile")
+          # Assets were originally published under ali12hhh-oss/alsaeqa's release;
+          # fall back there if not found in this repo's own releases.
+          candidate_repos = [repo, "ali12hhh-oss/alsaeqa"]
 
-for asset in manifest["assets"]:
-    fname = asset["file"]
-    expected = asset["sha256"]
-    dest = os.path.join("Downloads", fname)
-    downloaded = False
-    for r in candidate_repos:
-        url = f"https://github.com/{r}/releases/download/{tag}/{fname}"
-        try:
-            print(f"Trying {url}")
-            urllib.request.urlretrieve(url, dest)
-            downloaded = True
-            break
-        except Exception as e:
-            print(f"  failed: {e}")
-    if not downloaded:
-        sys.exit(f"Could not download {fname} from any candidate repo")
+          for asset in manifest["assets"]:
+              fname = asset["file"]
+              expected = asset["sha256"]
+              dest = os.path.join("Downloads", fname)
+              downloaded = False
+              for r in candidate_repos:
+                  url = f"https://github.com/{r}/releases/download/{tag}/{fname}"
+                  try:
+                      print(f"Trying {url}")
+                      urllib.request.urlretrieve(url, dest)
+                      downloaded = True
+                      break
+                  except Exception as e:
+                      print(f"  failed: {e}")
+              if not downloaded:
+                  sys.exit(f"Could not download {fname} from any candidate repo")
 
-    h = hashlib.sha256()
-    with open(dest, "rb") as f:
-        for chunk in iter(lambda: f.read(1 << 20), b""):
-            h.update(chunk)
-    digest = h.hexdigest()
-    if digest != expected:
-        sys.exit(f"Checksum mismatch for {fname}: expected {expected}, got {digest}")
-    print(f"OK  {fname}  sha256={digest}")
-PY
+              h = hashlib.sha256()
+              with open(dest, "rb") as f:
+                  for chunk in iter(lambda: f.read(1 << 20), b""):
+                      h.update(chunk)
+              digest = h.hexdigest()
+              if digest != expected:
+                  sys.exit(f"Checksum mismatch for {fname}: expected {expected}, got {digest}")
+              print(f"OK  {fname}  sha256={digest}")
+          PY
 
       - name: Expand nested source archives
         shell: bash
