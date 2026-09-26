@@ -4,6 +4,7 @@ extends Node3D
 @onready var camera: Camera3D = $Camera3D
 @onready var objective_label: Label = $MobileHUD/Objective
 @onready var stage1 = $Stage1
+@onready var stage2 = $Stage2
 @onready var mobile_controls: Control = $MobileHUD/MobileControls
 @onready var home_panel: Panel = $MobileHUD/HomePanel
 @onready var start_button: Button = $MobileHUD/HomePanel/StartButton
@@ -28,6 +29,15 @@ func _ready() -> void:
     stage1.rescue_progress.connect(_on_rescue_progress)
     stage1.guard_progress.connect(_on_guard_progress)
     stage1.stage_ready.connect(_on_stage_ready)
+    # Stage 2 ("The Hidden Mark") was wired end-to-end at the controller/world
+    # level (stage2_controller.gd, weapon_chest.gd, real_asset_world.gd's
+    # _build_stage_2) but never actually connected here, so completing Stage 2
+    # advanced GameState silently: no HUD update for its real objective (find
+    # the weapon chest + defeat 2 guards, not "rescue workers"), and no
+    # stage-transition cinematic. This was the last missing piece of Stage 2's
+    # loop — see Docs/PROJECT_CONTINUITY.md.
+    stage2.objective_progress.connect(_on_stage2_progress)
+    stage2.stage_ready.connect(_on_stage_ready)
     start_button.pressed.connect(_start_adventure)
     store_button.pressed.connect(func(): store_screen.show_screen())
     inventory_button.pressed.connect(func(): inventory_screen.show_screen())
@@ -151,18 +161,35 @@ func _set_gameplay_hud_visible(value: bool) -> void:
     $MobileHUD/Objective.visible = value
     $MobileHUD/Hint.visible = value
 
+## Objective text is stage-aware: Stage 1's goal (rescue workers + defeat
+## every mine guard) and Stage 2's goal (find the hidden weapon cache +
+## defeat its 2 guards) are different objectives and must not share wording,
+## or the HUD would keep showing "rescue workers" during a stage that has no
+## workers in it. Stages with no content yet show a plain placeholder rather
+## than reusing Stage 1/2 text that would not describe them accurately.
 func _refresh_hud() -> void:
-    # total_guards_stage1 is populated as GuardEnemy instances register
-    # themselves at runtime (the real count depends on the asset library),
-    # so it can briefly read 0 before the world finishes spawning; clamp to
-    # at least 1 so the HUD never shows a misleading "0/0" as fully cleared.
-    var guard_total: int = max(GameState.total_guards_stage1, 1)
-    objective_label.text = "إنقاذ العمال: %d/5    هزيمة الحراس: %d/%d" % [GameState.rescued_workers, GameState.defeated_slavers, guard_total]
+    match GameState.current_stage:
+        1:
+            # total_guards_stage1 is populated as GuardEnemy instances register
+            # themselves at runtime (the real count depends on the asset library),
+            # so it can briefly read 0 before the world finishes spawning; clamp to
+            # at least 1 so the HUD never shows a misleading "0/0" as fully cleared.
+            var guard_total: int = max(GameState.total_guards_stage1, 1)
+            objective_label.text = "إنقاذ العمال: %d/5    هزيمة الحراس: %d/%d" % [GameState.rescued_workers, GameState.defeated_slavers, guard_total]
+        2:
+            var guard_total: int = max(GameState.total_guards_stage1, 1)
+            var weapon_status: String = "تم العثور عليه" if stage2.weapon_found else "لم يُعثر عليه بعد"
+            objective_label.text = "صندوق السلاح: %s    هزيمة الحراس: %d/%d" % [weapon_status, GameState.defeated_slavers, guard_total]
+        _:
+            objective_label.text = "المرحلة %d قيد الإعداد" % GameState.current_stage
 
 func _on_rescue_progress(_current: int, _required: int) -> void:
     _refresh_hud()
 
 func _on_guard_progress(_current: int, _required: int) -> void:
+    _refresh_hud()
+
+func _on_stage2_progress(_weapon_found: bool, _guards_current: int, _guards_required: int) -> void:
     _refresh_hud()
 
 func _on_home_currency_changed(new_amount: int) -> void:
