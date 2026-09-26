@@ -1,0 +1,209 @@
+extends Node3D
+
+@onready var hero: CharacterBody3D = $Hero
+@onready var camera: Camera3D = $Camera3D
+@onready var objective_label: Label = $MobileHUD/Objective
+@onready var stage1 = $Stage1
+@onready var stage2 = $Stage2
+@onready var mobile_controls: Control = $MobileHUD/MobileControls
+@onready var home_panel: Panel = $MobileHUD/HomePanel
+@onready var start_button: Button = $MobileHUD/HomePanel/StartButton
+@onready var stage_intro: Control = $MobileHUD/StageIntro
+@onready var stage_intro_label: Label = $MobileHUD/StageIntro/StageNumber
+@onready var gameplay_world: Node3D = $World
+@onready var store_button: Button = $MobileHUD/HomePanel/StoreButton
+@onready var inventory_button: Button = $MobileHUD/HomePanel/InventoryButton
+@onready var settings_button: Button = $MobileHUD/HomePanel/SettingsButton
+@onready var home_currency_label: Label = $MobileHUD/HomePanel/CurrencyLabel
+@onready var store_screen: Control = $MobileHUD/StoreScreen
+@onready var inventory_screen: Control = $MobileHUD/InventoryScreen
+@onready var settings_screen: Control = $MobileHUD/SettingsScreen
+
+var gameplay_started := false
+var home_time := 0.0
+var stage_intro_time_left := 0.0
+var home_hero_visual: Node3D
+var home_animation_started := false
+
+func _ready() -> void:
+    stage1.rescue_progress.connect(_on_rescue_progress)
+    stage1.guard_progress.connect(_on_guard_progress)
+    stage1.stage_ready.connect(_on_stage_ready)
+    # Stage 2 ("The Hidden Mark") was wired end-to-end at the controller/world
+    # level (stage2_controller.gd, weapon_chest.gd, real_asset_world.gd's
+    # _build_stage_2) but never actually connected here, so completing Stage 2
+    # advanced GameState silently: no HUD update for its real objective (find
+    # the weapon chest + defeat 2 guards, not "rescue workers"), and no
+    # stage-transition cinematic. This was the last missing piece of Stage 2's
+    # loop — see Docs/PROJECT_CONTINUITY.md.
+    stage2.objective_progress.connect(_on_stage2_progress)
+    stage2.stage_ready.connect(_on_stage_ready)
+    start_button.pressed.connect(_start_adventure)
+    store_button.pressed.connect(func(): store_screen.show_screen())
+    inventory_button.pressed.connect(func(): inventory_screen.show_screen())
+    settings_button.pressed.connect(func(): settings_screen.show_screen())
+    GameState.currency_changed.connect(_on_home_currency_changed)
+    home_currency_label.text = "رصيدك: %d" % GameState.currency
+
+    gameplay_started = false
+    mobile_controls.visible = false
+    stage_intro.visible = false
+    _set_gameplay_hud_visible(false)
+
+    # The gameplay asset library contains large environmental pieces placed
+    # for Stage 1. They must not intersect the camera during the clean home
+    # presentation; the same real assets are restored when gameplay starts.
+    gameplay_world.visible = false
+
+    hero.set_physics_process(false)
+    hero.set_process(false)
+    camera.set_process(false)
+    camera.current = true
+
+    call_deferred("_prepare_cinematic_home")
+    _refresh_hud()
+
+func _process(delta: float) -> void:
+    if gameplay_started:
+        _update_stage_intro(delta)
+        return
+
+    home_time += delta
+    _update_cinematic_home(delta)
+
+func _prepare_cinematic_home() -> void:
+    if not is_instance_valid(hero):
+        return
+
+    home_hero_visual = hero.get_node_or_null("HeroRealVisual")
+    if home_hero_visual == null:
+        for child in hero.get_children():
+            if child is Node3D and child.name.to_lower().begins_with("hero_real_"):
+                home_hero_visual = child as Node3D
+                break
+
+    if hero.has_method("bind_real_hero_visual"):
+        hero.bind_real_hero_visual()
+
+    if hero.has_method("_play_best_animation"):
+        var idle_tokens: Array[String] = ["idle", "breathing", "stand"]
+        hero.call("_play_best_animation", idle_tokens, true)
+        home_animation_started = true
+
+    _update_cinematic_home(0.0)
+
+func _update_cinematic_home(_delta: float) -> void:
+    if not is_instance_valid(hero) or not is_instance_valid(camera):
+        return
+
+    var target := hero.global_position + Vector3.UP * 1.05
+    var drift := Vector3(
+        sin(home_time * 0.23) * 0.42,
+        1.85 + sin(home_time * 0.31) * 0.08,
+        4.65 + cos(home_time * 0.19) * 0.30
+    )
+    camera.global_position = hero.global_position + drift
+    camera.look_at(target, Vector3.UP)
+    camera.fov = 52.0 + sin(home_time * 0.17) * 1.2
+
+    if is_instance_valid(home_hero_visual):
+        if not home_animation_started and hero.has_method("_play_best_animation"):
+            var idle_tokens: Array[String] = ["idle", "breathing", "stand"]
+            hero.call("_play_best_animation", idle_tokens, true)
+            home_animation_started = true
+        var sway := sin(home_time * 0.85) * 0.012
+        home_hero_visual.rotation.y = sway
+        home_hero_visual.position.y = sin(home_time * 1.15) * 0.012
+
+func _start_adventure() -> void:
+    if gameplay_started:
+        return
+
+    gameplay_started = true
+    home_panel.visible = false
+
+    var story_intro: Control = $MobileHUD.get_node_or_null("StoryIntro")
+    if story_intro != null and story_intro.has_method("start"):
+        story_intro.finished.connect(_begin_stage_gameplay, CONNECT_ONE_SHOT)
+        story_intro.start()
+    else:
+        _begin_stage_gameplay()
+
+func _begin_stage_gameplay() -> void:
+    mobile_controls.visible = true
+    _set_gameplay_hud_visible(true)
+    gameplay_world.visible = true
+
+    hero.set_process(true)
+    hero.set_physics_process(true)
+    camera.set_process(true)
+
+    _show_stage_intro(GameState.current_stage)
+    _refresh_hud()
+
+func _show_stage_intro(stage_number: int) -> void:
+    stage_intro_label.text = "المرحلة %s" % _to_arabic_digits(stage_number)
+    stage_intro_time_left = 3.0
+    stage_intro.visible = true
+    stage_intro.modulate.a = 1.0
+
+func _update_stage_intro(delta: float) -> void:
+    if not stage_intro.visible:
+        return
+    stage_intro_time_left = maxf(stage_intro_time_left - delta, 0.0)
+    if stage_intro_time_left <= 0.0:
+        stage_intro.visible = false
+    elif stage_intro_time_left < 0.55:
+        stage_intro.modulate.a = stage_intro_time_left / 0.55
+
+func _set_gameplay_hud_visible(value: bool) -> void:
+    $MobileHUD/TitlePanel.visible = value
+    $MobileHUD/Objective.visible = value
+    $MobileHUD/Hint.visible = value
+
+## Objective text is stage-aware: Stage 1's goal (rescue workers + defeat
+## every mine guard) and Stage 2's goal (find the hidden weapon cache +
+## defeat its 2 guards) are different objectives and must not share wording,
+## or the HUD would keep showing "rescue workers" during a stage that has no
+## workers in it. Stages with no content yet show a plain placeholder rather
+## than reusing Stage 1/2 text that would not describe them accurately.
+func _refresh_hud() -> void:
+    match GameState.current_stage:
+        1:
+            # total_guards_stage1 is populated as GuardEnemy instances register
+            # themselves at runtime (the real count depends on the asset library),
+            # so it can briefly read 0 before the world finishes spawning; clamp to
+            # at least 1 so the HUD never shows a misleading "0/0" as fully cleared.
+            var guard_total: int = max(GameState.total_guards_stage1, 1)
+            objective_label.text = "إنقاذ العمال: %d/5    هزيمة الحراس: %d/%d" % [GameState.rescued_workers, GameState.defeated_slavers, guard_total]
+        2:
+            var guard_total: int = max(GameState.total_guards_stage1, 1)
+            var weapon_status: String = "تم العثور عليه" if stage2.weapon_found else "لم يُعثر عليه بعد"
+            objective_label.text = "صندوق السلاح: %s    هزيمة الحراس: %d/%d" % [weapon_status, GameState.defeated_slavers, guard_total]
+        _:
+            objective_label.text = "المرحلة %d قيد الإعداد" % GameState.current_stage
+
+func _on_rescue_progress(_current: int, _required: int) -> void:
+    _refresh_hud()
+
+func _on_guard_progress(_current: int, _required: int) -> void:
+    _refresh_hud()
+
+func _on_stage2_progress(_weapon_found: bool, _guards_current: int, _guards_required: int) -> void:
+    _refresh_hud()
+
+func _on_home_currency_changed(new_amount: int) -> void:
+    home_currency_label.text = "رصيدك: %d" % new_amount
+
+func _on_stage_ready() -> void:
+    _refresh_hud()
+    CinematicDirector.start_story_beat("StageTransition", 1.25)
+
+func _to_arabic_digits(value: int) -> String:
+    var source := str(value)
+    var result := ""
+    var arabic := ["٠", "١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩"]
+    for character in source:
+        var digit := int(character)
+        result += arabic[digit]
+    return result

@@ -1,23 +1,66 @@
-# الصاعقة — ALSAEQA
+# الصاعقة موبايل — ALSAEQA Mobile
 
-Original 3D thunder adventure game.
+**الاسم الرسمي للمشروع:** الصاعقة موبايل — ALSAEQA Mobile
 
-## Project policy
+المشروع الرسمي لتحويل لعبة **الصاعقة** إلى لعبة Android Mobile ثلاثية الأبعاد، مع الحفاظ على الهوية والقصة والمراحل والمشاهد السينمائية والقتالية وتطور البطل والرفيقة والقدرات والمركوبات وThunderBeast.
 
-This repository is the **single canonical project repository** for ALSAEQA.
+## سياسة المشروع
+- مستودع واحد رسمي ومستمر: `ali12hhh-oss/alsaeqa_mobile`.
+- لا توجد نسخ V1/V2/V3 متوازية.
+- لا تُعاد الأنظمة المنجزة من الصفر.
+- لا تُعتمد primitive/blockout كرسومات نهائية.
+- كل ميزة تُعتبر مكتملة فقط بعد ربطها واختبار مسارها الفعلي.
 
-- No split editions or parallel versions.
-- All game systems, content, fixes, improvements, and additions belong to this same project.
-- The project evolves continuously as one game.
-- Unreal Engine 5 + C++/Blueprints.
-- Primary target: Android, with scalable quality tiers.
+## الحالة الحالية
+- البنية Mobile-first موجودة داخل `mobile/`.
+- سجل المراحل 1–70 موجود.
+- أساس الحركة والكاميرا والتحكم اللمسي وHUD موجود.
+- أساس Stage 1 موجود.
+- مدير السينمائيات موجود.
+- خط GitHub Actions للتنزيل والتحويل والتحقق وتصدير APK موجود.
+- طبقة الأصول الحقيقية القابلة لإعادة التحويل موجودة.
 
-## Core vision
+## الأصول الحقيقية
+المصدر المعتمد هو Releases في `ali12hhh-oss/alsaeqa`.
 
-A cinematic third-person 3D adventure about the last heir of an ancient family of Thunder Giants. The hero discovers his supernatural heritage after surviving a catastrophic event in a slave mine and begins a long journey to find his family, confront those who hunted them, and master the forces of thunder.
+الحزم الثلاث المعتمدة:
+- `ALSAEQA_REAL_ASSETS.zip`
+- `ALSAEQA_EXTRA_MONSTERS.zip.zip`
+- `ALSAEQA_EXTRA_ULTIMATE_MODULAR_RUINS.zip.zip`
 
-## Repository scope
+لا نضع الحزم الضخمة داخل تاريخ Git. يتم تنزيلها في GitHub Actions والتحقق من SHA-256 ثم استخراجها وتحويل الأصول المطلوبة للموبايل.
 
-This repository contains the source code, project configuration, technical documentation, gameplay design, content specifications, build configuration, automation, and all text-based project assets that can be maintained through Git.
+## قابلية تعديل الأصول
+التصميم المعتمد:
 
-Binary Unreal assets such as `.uasset` and `.umap` require Unreal Editor/content tooling and are not represented by placeholder text files.
+`Logical Asset ID → Source Asset → Converted Mobile Asset → Scene/Character/Weapon Binding`
+
+الملفات المسؤولة:
+- `mobile/assets/asset_manifest.json`
+- `Tools/Assets/sync_real_assets.py`
+- `Tools/Assets/blender_convert.py`
+- `mobile/assets/README.md`
+
+يمكن تعديل أو استبدال المصدر الحقيقي ثم إعادة التحويل دون تغيير منطق اللعبة عند الحفاظ على الـlogical ID. المصدر لا يُستبدل بنسخة مسطحة غير قابلة لإعادة التحرير.
+
+## ما تم وما لم يتم
+### مؤسس
+المشروع المحمول، المراحل، الحفظ الأساسي، الحركة والكاميرا والتحكم اللمسي، أساس Stage 1، السينمائيات الأساسية، وCI والأصول.
+
+### جزئي
+الربط النهائي للأصول داخل المشاهد، الأنيميشن، القتال المتقدم، AI، السينمائيات النهائية، الصوت وVFX، وبناء Stage 1 بصريًا.
+
+### لم يكتمل
+أهداف Gameplay للمراحل 2–70، التسلق وIK، الرياح، ThunderBeast الكامل، الحوار والمهام والأحداث، الحفظ الكامل، تحسين Android النهائي، واختبار APK على جهاز حقيقي.
+
+**VFX سلاح الرعد تحديدًا ما زال ضمن الأعمال غير المكتملة.**
+
+## وثائق الاستمرار
+- `Docs/ALSAEQA_MASTER_PROJECT_BIBLE.md` — الوثيقة الرئيسية.
+- `Docs/PROJECT_CONTINUITY.md` — سجل الاستمرارية.
+- `Docs/DEVELOPMENT_RULES.md` — قواعد التطوير.
+- `mobile/CONVERSION_STATUS.md` — حالة التحويل المحمول.
+
+قبل أي تعديل: اقرأ الوثائق، افحص الملفات الحالية، ثم أكمل أعلى بند غير مكتمل.
+
+**الاسم الرسمي المعتمد: الصاعقة موبايل — ALSAEQA Mobile.**
