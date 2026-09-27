@@ -43,6 +43,19 @@ var _attack_targets: Array[Node] = []
 @export var light_damage := 18.0
 @export var heavy_damage := 42.0
 
+## Hero health/death. No enemy in the project could damage the hero before
+## this — every HostileCreature (guards, Stage 3 cave monsters/boss) now
+## calls receive_damage() on contact via the "alsaeqa_hero" group, the same
+## way the hero already calls receive_damage() on them.
+@export var max_health := 100.0
+@export var hit_invulnerability := 0.4
+var current_health := max_health
+var is_dead := false
+var _invulnerable_time_left := 0.0
+
+signal health_changed(current: float, max: float)
+signal hero_died
+
 var hero_visual: Node3D
 var hero_skeleton: Skeleton3D
 var hero_animation_player: AnimationPlayer
@@ -164,6 +177,8 @@ func _cache_animation_names() -> void:
     _animation_names.sort()
 
 func _physics_process(delta: float) -> void:
+    if is_dead:
+        return
     if not hero_visual_ready:
         bind_real_hero_visual()
 
@@ -187,6 +202,7 @@ func _update_action_timers(delta: float) -> void:
     _combo_reset_time = maxf(_combo_reset_time - delta, 0.0)
     if _combo_reset_time <= 0.0:
         _combo_step = 0
+    _invulnerable_time_left = maxf(_invulnerable_time_left - delta, 0.0)
     if rolling and _roll_time_left <= 0.0:
         rolling = false
 
@@ -307,12 +323,12 @@ func toggle_listen() -> void:
         crouching = false
 
 func light_attack() -> void:
-    if rolling or _combat_cooldown > 0.0 or thunder_charging:
+    if is_dead or rolling or _combat_cooldown > 0.0 or thunder_charging:
         return
     _begin_attack(false)
 
 func heavy_attack() -> void:
-    if rolling or _combat_cooldown > 0.0 or thunder_charging:
+    if is_dead or rolling or _combat_cooldown > 0.0 or thunder_charging:
         return
     _begin_attack(true)
 
@@ -481,3 +497,41 @@ func _play_animation(animation_name: String, looping: bool) -> void:
     if animation != null:
         animation.loop_mode = Animation.LOOP_LINEAR if looping else Animation.LOOP_NONE
     _current_animation = animation_name
+
+## Called by any HostileCreature on contact (guards, Stage 3 cave monsters/
+## boss). Rolling grants brief dodge invincibility, matching the existing
+## roll/dodge mechanic's intent; a short post-hit invulnerability window
+## after every non-dodged hit prevents multiple enemies or one enemy's
+## repeated contact checks from deleting health in a single frame.
+func receive_damage(amount: float, _source_position: Vector3, _heavy: bool) -> void:
+    if is_dead or rolling or _invulnerable_time_left > 0.0:
+        return
+    var mitigated := maxf(amount - GameState.get_defense_bonus(), amount * 0.15)
+    current_health = maxf(current_health - mitigated, 0.0)
+    _invulnerable_time_left = hit_invulnerability
+    health_changed.emit(current_health, max_health)
+    _play_action_animation(["hit_react", "hit", "impact", "flinch"], 0.32)
+    if current_health <= 0.0:
+        _die()
+
+func _die() -> void:
+    if is_dead:
+        return
+    is_dead = true
+    velocity = Vector3.ZERO
+    thunder_charging = false
+    rolling = false
+    _play_action_animation(["death", "die", "ko"], 2.5)
+    hero_died.emit()
+
+## Called by main.gd after a brief delay once hero_died fires. Restores
+## full health and control at the given checkpoint position/facing rather
+## than the stage's original start point.
+func respawn_at(target_position: Vector3, rotation_y: float) -> void:
+    is_dead = false
+    current_health = max_health
+    _invulnerable_time_left = hit_invulnerability
+    global_position = target_position
+    rotation.y = rotation_y
+    velocity = Vector3.ZERO
+    health_changed.emit(current_health, max_health)
