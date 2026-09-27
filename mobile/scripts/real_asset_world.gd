@@ -21,7 +21,22 @@ const ROLE_PATTERNS := {
     # pack and uses the explicit fallback below instead of a false match.
     "guard": ["guard", "soldier", "warrior", "knight"],
     "beast": ["beast", "mount", "horse", "creature", "monster", "dragon", "snake"],
-    "environment": ["ruin", "dungeon", "prison", "cave", "village", "farm", "wall", "prop", "nature"]
+    # "dungeon" narrowed to "modular dungeon" (the real "Updated Modular
+    # Dungeon" pack): the bare substring also matched the unrelated
+    # "Bestiary - Dungeon Monsters Kit" character pack, silently leaking
+    # Imp/Puglin monster meshes into "environment" prop scatter.
+    "environment": ["ruin", "modular dungeon", "prison", "cave", "village", "farm", "wall", "prop", "nature"],
+    # Stage 3 ("Echo Under Stone"): small ambient cave threats. Only the
+    # Blob-family creatures (a small/simple silhouette, per explicit project
+    # direction to keep the forest animal pack for Stage 6 instead) —
+    # verified real filenames from ALSAEQA_EXTRA_MONSTERS.zip.zip's
+    # Blob/FBX/ folder, not the whole folder (which also contains mundane
+    # animals like Cat/Dog/Chicken that don't read as monsters).
+    "cave_monster": ["pinkblob", "greenblob", "greenspikyblob", "mushnub"],
+    # Stage 3's one mandatory boss. "/imp." (with the surrounding
+    # separators) rather than a bare "imp" substring, so it can never
+    # accidentally match an unrelated path containing that letter sequence.
+    "dungeon_monster": ["/imp."]
 }
 
 const CANONICAL_HERO_HINTS := [
@@ -36,6 +51,20 @@ const CANONICAL_HERO_HINTS := [
 const WORKER_CAPTIVE_SCRIPT := preload("res://scripts/worker_captive.gd")
 const GUARD_ENEMY_SCRIPT := preload("res://scripts/guard_enemy.gd")
 const WEAPON_CHEST_SCRIPT := preload("res://scripts/weapon_chest.gd")
+const CAVE_MONSTER_SCRIPT := preload("res://scripts/cave_monster.gd")
+const DUNGEON_MONSTER_SCRIPT := preload("res://scripts/dungeon_monster.gd")
+const CHECKPOINT_ZONE_SCRIPT := preload("res://scripts/checkpoint_zone.gd")
+
+## Roles that need an actual physics body (CharacterBody3D) wrapped around
+## the imported visual, so the hero's melee shape-query and this creature's
+## own contact-attack check can find each other as real PhysicsBody3D
+## colliders. Keyed by role name so _spawn_role_variants stays one shared
+## code path instead of repeating the same wrapper logic per role.
+const PHYSICS_BODY_SCRIPTS := {
+    "guard": GUARD_ENEMY_SCRIPT,
+    "cave_monster": CAVE_MONSTER_SCRIPT,
+    "dungeon_monster": DUNGEON_MONSTER_SCRIPT
+}
 
 @export var worker_count := 5
 @export var guard_count := 9
@@ -89,6 +118,8 @@ func rebuild_for_stage(stage: int) -> void:
             _build_stage_1()
         2:
             _build_stage_2()
+        3:
+            _build_stage_3()
         _:
             push_warning("real_asset_world.gd has no world content defined yet for stage %d — leaving the area empty rather than reusing Stage 1/2 content, since neither is what this stage is meant to look like." % stage)
     _report_role_coverage(_cached_assets)
@@ -121,6 +152,38 @@ func _spawn_weapon_chest() -> void:
     chest.set_script(WEAPON_CHEST_SCRIPT)
     add_child(chest)
     chest.position = Vector3(3, 0, 7)
+
+## Stage 3 ("Echo Under Stone"): the mine's surroundings widen into rocky
+## terrain, small caves and sparse vegetation — still the mine's vicinity,
+## NOT the Forest of Whispers (that stays Stage 6 per the project bible;
+## explicitly confirmed with the project owner before building this).
+## Small ambient CaveMonster threats are scattered along the path — real
+## threats, but optional, not a stage-clear gate. A CheckpointZone sits
+## just before the cave entrance so dying to the DungeonMonster boss
+## respawns the hero right before that fight, not at the stage's start.
+func _build_stage_3() -> void:
+    _spawn_role_variants("cave_monster", _cached_assets, 4, Vector3(-6, 0, 10), 1.4)
+    _spawn_role_variants("environment", _cached_assets, 20, Vector3.ZERO, 8.0)
+    _spawn_cave_checkpoint()
+    _spawn_role_variants("dungeon_monster", _cached_assets, 1, Vector3(10, 0, -6), 2.0)
+
+func _spawn_cave_checkpoint() -> void:
+    var checkpoint := Area3D.new()
+    checkpoint.name = "CaveCheckpoint"
+    checkpoint.set_script(CHECKPOINT_ZONE_SCRIPT)
+    checkpoint.collision_layer = 0
+    checkpoint.collision_mask = 1
+
+    var shape := CollisionShape3D.new()
+    var box := BoxShape3D.new()
+    box.size = Vector3(4, 3, 4)
+    shape.shape = box
+    checkpoint.add_child(shape)
+
+    add_child(checkpoint)
+    # Just before the DungeonMonster fight point (10, 0, -6), matching the
+    # "same point or slightly before it, not the stage start" requirement.
+    checkpoint.position = Vector3(8, 0, -6)
 
 func _find_glb_files(path: String) -> Array[String]:
     var result: Array[String] = []
@@ -340,15 +403,17 @@ func _spawn_role_variants(role: String, assets: Array[String], count: int, origi
             instance.worker_index = i
             continue
 
-        if role == "guard":
-            # GuardEnemy extends CharacterBody3D so the hero's melee shape
-            # query (which only finds actual PhysicsBody3D colliders) can
-            # hit it — the imported visual itself has no physics body, so
-            # it is reparented as a child of a new physics-enabled wrapper
-            # rather than added to the scene directly.
+        if role in PHYSICS_BODY_SCRIPTS:
+            # Every HostileCreature (GuardEnemy, CaveMonster, DungeonMonster)
+            # extends CharacterBody3D so the hero's melee shape query (which
+            # only finds actual PhysicsBody3D colliders) — and this
+            # creature's own contact-attack check against the hero — can
+            # find each other. The imported visual itself has no physics
+            # body, so it is reparented as a child of a new physics-enabled
+            # wrapper rather than added to the scene directly.
             var body := CharacterBody3D.new()
             body.name = "%s_Real_%02d" % [role, i + 1]
-            body.set_script(GUARD_ENEMY_SCRIPT)
+            body.set_script(PHYSICS_BODY_SCRIPTS[role])
 
             var collision := CollisionShape3D.new()
             var capsule := CapsuleShape3D.new()
@@ -360,7 +425,7 @@ func _spawn_role_variants(role: String, assets: Array[String], count: int, origi
 
             add_child(body)
             body.position = _role_position(role, i, count, origin)
-            instance.name = "GuardVisual"
+            instance.name = "%sVisual" % role.capitalize()
             body.add_child(instance)
             _normalize_height(instance, target_height)
             continue
@@ -431,6 +496,12 @@ func _role_position(role: String, index: int, count: int, origin: Vector3) -> Ve
         return origin + Vector3(cos(angle) * 11.0, 0, sin(angle) * 11.0)
     if role == "beast":
         return origin + Vector3(float(index % 2) * 7.0, 0, float(index / 2) * 6.0)
+    if role == "cave_monster":
+        return origin + Vector3(float(index % 2) * 6.0 - 3.0, 0, float(index / 2) * 5.0)
+    if role == "dungeon_monster":
+        # A single boss placed exactly at the point it was given, not offset
+        # into a grid cell meant for spawning several instances.
+        return origin
     if role == "environment":
         return origin + _mine_perimeter_position(index, count)
     var row := index / 4
