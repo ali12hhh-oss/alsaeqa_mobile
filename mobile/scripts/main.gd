@@ -5,6 +5,7 @@ extends Node3D
 @onready var objective_label: Label = $MobileHUD/Objective
 @onready var stage1 = $Stage1
 @onready var stage2 = $Stage2
+@onready var stage3 = $Stage3
 @onready var mobile_controls: Control = $MobileHUD/MobileControls
 @onready var home_panel: Panel = $MobileHUD/HomePanel
 @onready var start_button: Button = $MobileHUD/HomePanel/StartButton
@@ -38,6 +39,13 @@ func _ready() -> void:
     # loop — see Docs/PROJECT_CONTINUITY.md.
     stage2.objective_progress.connect(_on_stage2_progress)
     stage2.stage_ready.connect(_on_stage_ready)
+    # Stage 3 has no HUD-visible progress meter (its objective is "find and
+    # defeat the one boss", already conveyed by the stage intro/hint text),
+    # so only stage_ready is connected — same _on_stage_ready() every stage
+    # uses, so the transition beat/HUD refresh behaves consistently.
+    stage3.stage_ready.connect(_on_stage_ready)
+    hero.health_changed.connect(_on_hero_health_changed)
+    hero.hero_died.connect(_on_hero_died)
     start_button.pressed.connect(_start_adventure)
     store_button.pressed.connect(func(): store_screen.show_screen())
     inventory_button.pressed.connect(func(): inventory_screen.show_screen())
@@ -138,8 +146,14 @@ func _begin_stage_gameplay() -> void:
     hero.set_physics_process(true)
     camera.set_process(true)
 
+    # First checkpoint for a stage is wherever the hero actually starts it;
+    # any CheckpointZone placed mid-stage (see checkpoint_zone.gd) then
+    # moves this forward as the hero reaches it.
+    GameState.set_checkpoint(hero.global_position, hero.rotation.y)
+
     _show_stage_intro(GameState.current_stage)
     _refresh_hud()
+    _on_hero_health_changed(hero.current_health, hero.max_health)
 
 func _show_stage_intro(stage_number: int) -> void:
     stage_intro_label.text = "المرحلة %s" % _to_arabic_digits(stage_number)
@@ -160,6 +174,7 @@ func _set_gameplay_hud_visible(value: bool) -> void:
     $MobileHUD/TitlePanel.visible = value
     $MobileHUD/Objective.visible = value
     $MobileHUD/Hint.visible = value
+    $MobileHUD/HealthLabel.visible = value
 
 ## Objective text is stage-aware: Stage 1's goal (rescue workers + defeat
 ## every mine guard) and Stage 2's goal (find the hidden weapon cache +
@@ -169,6 +184,8 @@ func _set_gameplay_hud_visible(value: bool) -> void:
 ## than reusing Stage 1/2 text that would not describe them accurately.
 func _refresh_hud() -> void:
     match GameState.current_stage:
+        3:
+            objective_label.text = "ابحث عن الوحش داخل الكهف الكبير وواجهه"
         1:
             # total_guards_stage1 is populated as GuardEnemy instances register
             # themselves at runtime (the real count depends on the asset library),
@@ -191,6 +208,21 @@ func _on_guard_progress(_current: int, _required: int) -> void:
 
 func _on_stage2_progress(_weapon_found: bool, _guards_current: int, _guards_required: int) -> void:
     _refresh_hud()
+
+func _on_hero_health_changed(current: float, max_health_value: float) -> void:
+    $MobileHUD/HealthLabel.text = "الصحة: %d/%d" % [int(round(current)), int(round(max_health_value))]
+
+## Hero death was never previously reachable (no enemy in the project could
+## damage the hero before this session), so this respawn flow is new: a
+## short beat so death reads intentionally rather than as a freeze, then
+## the hero is restored at GameState's checkpoint — the stage's own start
+## point if the hero never reached a mid-stage CheckpointZone yet — with
+## full health, not sent back to the stage's very beginning.
+func _on_hero_died() -> void:
+    CinematicDirector.start_story_beat("NearDeath", 0.5)
+    await get_tree().create_timer(1.2).timeout
+    hero.respawn_at(GameState.checkpoint_position, GameState.checkpoint_rotation_y)
+    _on_hero_health_changed(hero.current_health, hero.max_health)
 
 func _on_home_currency_changed(new_amount: int) -> void:
     home_currency_label.text = "رصيدك: %d" % new_amount

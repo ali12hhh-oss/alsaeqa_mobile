@@ -16,6 +16,17 @@ var discovered_clues: Array[String] = []
 var thunder_charge: float = 0.0
 var hero_name: String = "الصاعقة"
 
+## Checkpoint the hero respawns at on death, instead of always returning to
+## the stage's original start point. Set by main.gd when a stage begins and
+## updated by any CheckpointZone the hero passes through mid-stage (see
+## checkpoint_zone.gd) — e.g. right before a dangerous fight, so death
+## sends the player back to roughly that point, not the whole stage over.
+## Reset (has_checkpoint = false) whenever a new stage begins; the stage's
+## own start position becomes the first checkpoint once gameplay begins.
+var has_checkpoint: bool = false
+var checkpoint_position: Vector3 = Vector3.ZERO
+var checkpoint_rotation_y: float = 0.0
+
 ## Store/inventory economy. inventory maps item_id -> owned count; items are
 ## defined in store_catalog.gd, not duplicated here, so this stays a plain
 ## data map regardless of how the catalog grows.
@@ -58,8 +69,14 @@ func advance_to_next_stage() -> void:
     current_stage += 1
     total_guards_stage1 = 0
     defeated_slavers = 0
+    has_checkpoint = false
     save_game()
     stage_advanced.emit(current_stage)
+
+func set_checkpoint(position: Vector3, rotation_y: float) -> void:
+    has_checkpoint = true
+    checkpoint_position = position
+    checkpoint_rotation_y = rotation_y
 
 func add_clue(clue_id: String) -> void:
     if clue_id not in discovered_clues:
@@ -164,7 +181,10 @@ func save_game() -> void:
         "owned_gear": owned_gear,
         "equipped_weapon": equipped_weapon,
         "equipped_armor": equipped_armor,
-        "equipped_outfit": equipped_outfit
+        "equipped_outfit": equipped_outfit,
+        "has_checkpoint": has_checkpoint,
+        "checkpoint_position": [checkpoint_position.x, checkpoint_position.y, checkpoint_position.z],
+        "checkpoint_rotation_y": checkpoint_rotation_y
     }
     var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
     if file:
@@ -194,3 +214,8 @@ func load_game() -> void:
         equipped_weapon = str(parsed.get("equipped_weapon", ""))
         equipped_armor = str(parsed.get("equipped_armor", ""))
         equipped_outfit = str(parsed.get("equipped_outfit", EquipmentCatalog.STARTING_OUTFIT))
+        has_checkpoint = bool(parsed.get("has_checkpoint", false))
+        var raw_checkpoint = parsed.get("checkpoint_position", [0.0, 0.0, 0.0])
+        if raw_checkpoint is Array and raw_checkpoint.size() == 3:
+            checkpoint_position = Vector3(float(raw_checkpoint[0]), float(raw_checkpoint[1]), float(raw_checkpoint[2]))
+        checkpoint_rotation_y = float(parsed.get("checkpoint_rotation_y", 0.0))
