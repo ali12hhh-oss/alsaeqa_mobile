@@ -153,19 +153,98 @@ func _spawn_weapon_chest() -> void:
     add_child(chest)
     chest.position = Vector3(3, 0, 7)
 
-## Stage 3 ("Echo Under Stone"): the mine's surroundings widen into rocky
-## terrain, small caves and sparse vegetation — still the mine's vicinity,
-## NOT the Forest of Whispers (that stays Stage 6 per the project bible;
-## explicitly confirmed with the project owner before building this).
-## Small ambient CaveMonster threats are scattered along the path — real
-## threats, but optional, not a stage-clear gate. A CheckpointZone sits
-## just before the cave entrance so dying to the DungeonMonster boss
-## respawns the hero right before that fight, not at the stage's start.
+const RUINS_FBX := "res://assets/converted/ALSAEQA_EXTRA_ULTIMATE_MODULAR_RUINS.zip/FBX/"
+
 func _build_stage_3() -> void:
-    _spawn_role_variants("cave_monster", _cached_assets, 4, Vector3(-6, 0, 10), 1.4)
-    _spawn_role_variants("environment", _cached_assets, 20, Vector3.ZERO, 8.0)
+    _spawn_stage3_cave_structure()
+    _spawn_role_variants("cave_monster", _cached_assets, 4, Vector3(6, 0, 0), 1.3)
     _spawn_cave_checkpoint()
-    _spawn_role_variants("dungeon_monster", _cached_assets, 1, Vector3(10, 0, -6), 2.0)
+    _spawn_role_variants("dungeon_monster", _cached_assets, 1, Vector3(34, 0, 0), 2.0)
+
+## Loads and places one real, exactly-named piece (not role-pattern matched)
+## at an authored position/rotation, keeping its native imported scale —
+## used only for Stage 3's hand-built cave structure below, where the
+## layout depends on knowing exactly which piece sits where, unlike the
+## role-based scatter every other environment call uses.
+func _spawn_named_piece(path: String, position: Vector3, rotation_y_degrees: float = 0.0, scale_mult: float = 1.0) -> void:
+    var packed := load(path) as PackedScene
+    if packed == null:
+        push_warning("Stage 3 cave structure: missing expected real asset %s" % path)
+        return
+    var inst := packed.instantiate() as Node3D
+    add_child(inst)
+    inst.position = position
+    inst.rotation_degrees.y = rotation_y_degrees
+    if scale_mult != 1.0:
+        inst.scale *= scale_mult
+
+## Stage 3's cave, hand-authored on a 2m grid rather than the generic
+## perimeter-scatter every other stage's environment uses — a straight
+## walled tunnel (hero start -> x=20) opening through an arch into a
+## walled chamber (x=24..38) where the DungeonMonster boss waits.
+## Piece sizes are REAL measured values (Blender bound-box, meters), not
+## guessed: Wall = 2.0 x 2.0m tile (0.29m thick), Column_Round = 0.66m
+## across x 3.99m tall, Arch_Round = 3.09m wide x 3.53m tall. See
+## Docs/PROJECT_CONTINUITY.md for the full measured table and how it was
+## obtained (a local Blender bounding-box pass over the real FBX source,
+## not an assumption). The whole layout was verified by an actual local
+## render (Godot + Xvfb/Mesa software GL), not assumed to look right —
+## see Docs/PROJECT_CONTINUITY.md for what that found and fixed.
+##
+## HONEST LIMITATION: each piece's own authored "front" direction (which
+## way a wall's decorative face points, whether Arch_Round's opening runs
+## along local X or Z) was read from a real render of this exact layout,
+## not guessed — but this is still a first structured pass. Fine seam
+## alignment between adjacent tiles needs a visual pass in the Editor once
+## the full real asset set (not this session's curated subset) is in CI.
+func _spawn_stage3_cave_structure() -> void:
+    var wall := RUINS_FBX + "Wall.glb"
+    var wall_broken := RUINS_FBX + "Wall_Broken.glb"
+    var wall_overgrown := RUINS_FBX + "Wall_Overgrown.glb"
+    var wall_hole := RUINS_FBX + "Wall_Hole.glb"
+    var column := RUINS_FBX + "Column_Round.glb"
+    var arch := RUINS_FBX + "Arch_Round.glb"
+    var torch := RUINS_FBX + "Torch.glb"
+
+    # Tunnel: two rows of wall tiles, 2m apart, x = 2..20. A few damaged/
+    # overgrown variants break up the repetition instead of one tile
+    # copy-pasted end to end.
+    var variants := [wall, wall, wall_broken, wall, wall_overgrown, wall, wall_hole, wall, wall, wall]
+    var i := 0
+    var x := 2.0
+    while x <= 20.0:
+        _spawn_named_piece(variants[i % variants.size()], Vector3(x, 0, -2.0), 0.0)
+        _spawn_named_piece(variants[(i + 4) % variants.size()], Vector3(x, 0, 2.0), 180.0)
+        x += 2.0
+        i += 1
+    _spawn_named_piece(torch, Vector3(8.0, 1.6, -1.85), 0.0)
+    _spawn_named_piece(torch, Vector3(8.0, 1.6, 1.85), 180.0)
+
+    # Threshold arch between the tunnel and the chamber. Centered in the
+    # x=20..24 gap; scaled 1.6x — verified by real render against the 2m-
+    # tall tunnel walls, since a real render showed the arch's native
+    # import scale reading noticeably shorter than the walls either side of
+    # it despite its measured (Blender-space) height being taller, which
+    # points at a units mismatch somewhere in this pack's export rather
+    # than a measuring error; scaling it up to visually match is the
+    # honest fix until that's root-caused.
+    _spawn_named_piece(arch, Vector3(22.0, 0, 0), 90.0, 1.6)
+
+    # Chamber: x = 24..38, z = -8..8, walled on the left/right/far edges
+    # (the tunnel arch is the only opening, on the near edge).
+    var cz := -8.0
+    while cz <= 8.0:
+        _spawn_named_piece(wall, Vector3(24.0, 0, cz), 90.0)
+        _spawn_named_piece(wall, Vector3(38.0, 0, cz), 90.0)
+        cz += 2.0
+    var cx := 26.0
+    while cx <= 36.0:
+        _spawn_named_piece(wall, Vector3(cx, 0, -8.0), 0.0)
+        _spawn_named_piece(wall, Vector3(cx, 0, 8.0), 180.0)
+        cx += 2.0
+
+    for corner in [Vector3(27, 0, -6.5), Vector3(27, 0, 6.5), Vector3(35, 0, -6.5), Vector3(35, 0, 6.5)]:
+        _spawn_named_piece(column, corner, 0.0)
 
 func _spawn_cave_checkpoint() -> void:
     var checkpoint := Area3D.new()
@@ -181,9 +260,9 @@ func _spawn_cave_checkpoint() -> void:
     checkpoint.add_child(shape)
 
     add_child(checkpoint)
-    # Just before the DungeonMonster fight point (10, 0, -6), matching the
-    # "same point or slightly before it, not the stage start" requirement.
-    checkpoint.position = Vector3(8, 0, -6)
+    # At the tunnel/chamber threshold (arch is at x=21), matching the "same
+    # point or slightly before it, not the stage start" requirement.
+    checkpoint.position = Vector3(19, 0, 0)
 
 func _find_glb_files(path: String) -> Array[String]:
     var result: Array[String] = []
