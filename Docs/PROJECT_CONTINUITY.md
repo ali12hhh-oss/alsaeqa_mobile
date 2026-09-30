@@ -1,66 +1,217 @@
-# ALSAEQA — Project Continuity / Canonical State
+# الصاعقة موبايل — سجل الاستمرارية الرسمي
 
-Canonical repository: ali12hhh-oss/alsaeqa
-Project: الصاعقة / ALSAEQA
-Engine: Unreal Engine 5
-Primary target: Android
-Architecture: C++ gameplay foundation + Blueprint/Sequencer authored presentation.
-Rule: one continuous project; no V1/V2/V3 forks; no primitive placeholders as final art.
+هذا الملف هو سجل الاستمرارية الرسمي لمشروع **الصاعقة موبايل — ALSAEQA Mobile**، ويجب قراءته قبل متابعة العمل.
 
-## Stage 1 — Chains in the Mine
-Mandatory independent gates:
-- RescueWorkers = 5 distinct workers
-- DefeatSlavers = 1 designated Stage 1 slaver
+## 1. الهوية الرسمية
+- الاسم العربي: **الصاعقة موبايل**.
+- الاسم الإنجليزي: **ALSAEQA Mobile**.
+- المستودع: `ali12hhh-oss/alsaeqa_mobile`.
+- المشروع الأصلي المرجعي: `ali12hhh-oss/alsaeqa`.
+- الهدف: لعبة Android ثلاثية الأبعاد Mobile-first.
+- المشروع واحد مستمر؛ لا V1/V2/V3.
+- نحافظ على قصة الصاعقة وهوية اللعبة والمراحل والمشاهد السينمائية والمشاهد القتالية وتطور البطل والرفيقة والقدرات والمركوبات.
+- لا تُعتبر الأصول البدائية أو الـBlockout رسومات نهائية.
 
-Enemy-force standard:
-- The mine must contain **at least 7 enemies/slavers**, so the hostile force is clearly larger than the five workers being rescued.
-- Seven is the production minimum, not a requirement to kill seven enemies.
-- Exactly one or more specifically configured Stage 1 objective slavers may report the `DefeatSlavers` gate, but the mandatory gate remains `DefeatSlavers = 1`.
-- The remaining enemies are supporting guards, patrols, responders and pursuit/combat units that create pressure and escalation without becoming an extra progression gate.
-- Enemy placement must be distributed across the mine rather than stacking the whole force in one room. The encounter rhythm should alternate between discovery/stealth pressure, rescue interaction, pursuit/combat, traversal and the final confrontation.
+## 2. ما تم تأسيسه فعليًا في نسخة الموبايل
+- أساس مشروع Godot 4 داخل `mobile/`.
+- إعداد Android ومحرك التصدير وWorkflow للبناء عبر GitHub Actions.
+- حالة اللعبة والتقدم والحفظ الأساسي.
+- سجل المراحل 1–70.
+- مدير المشاهد السينمائية ونقاط القصة.
+- أساس حركة البطل والكاميرا والتحكم اللمسي.
+- أساس Stage 1 وأهداف الإنقاذ والمواجهة.
+- طبقة ربط الأصول الحقيقية ومخزونها.
+- نظام تحويل المصدر إلى GLB.
+- **مرحلة التطوير 1 — Character Base: مكتملة بعد البناء الناجح.**
+- **مرحلة التطوير 2 — Character Movement: مكتملة بعد البناء الناجح.**
 
-Final sequence: awakening aftermath → return to mine → discover surviving workers → rescue 1 → enemy response → rescue 2 → rescue 3 → escalation → rescue 4 → rescue 5 → defeat designated slaver → first mine-network clue → automatic Stage 1→2 transition.
+## 3. الأصول الحقيقية وقابلية التعديل
+المصدر الرسمي للأصول هو Releases في `ali12hhh-oss/alsaeqa`، وليس افتراض وجود `.uasset/.umap` داخل مستودع الموبايل.
 
-Five workers use distinct authored methods: Break Chain, Open Cage, Release Lift, Cut Binding, Escort Out. Each has a stable WorkerId and optional RescueSequenceTag.
-Each designated slaver has stable StageOneSlaverId. Death is authoritative and reports once.
+الحزم المسجلة:
+- `ALSAEQA_REAL_ASSETS.zip`
+- `ALSAEQA_EXTRA_MONSTERS.zip.zip`
+- `ALSAEQA_EXTRA_ULTIMATE_MODULAR_RUINS.zip.zip`
 
-## Stage 1 persistence — implemented
-ALSAEQASaveGame stores RescuedStageOneWorkerIds and DefeatedStageOneSlaverIds.
-ALSAEQASaveManager exposes record/query/count APIs.
-A previously rescued worker reloads as rescued and cannot count again.
-A previously defeated designated slaver reloads as dead and cannot count again.
+ملفات الربط والتحويل:
+- `mobile/assets/asset_manifest.json`
+- `mobile/assets/README.md`
+- `Tools/Assets/sync_real_assets.py`
+- `Tools/Assets/blender_convert.py`
 
-## Current committed foundation
-- 1–70 stage registry and progression validation.
-- Automatic stage flow with delayed transition.
-- Stage objective component with Stage 1 5+1 gates.
-- Worker rescue interaction and five presentation methods.
-- Stable Stage 1 worker/slaver persistence.
-- Designated slaver death linkage.
-- First Stage 1 clue unlock when both gates complete.
-- Automatic Stage 1→2 transition and cinematic hooks.
-- Forward interaction input (E).
-- Cinematic action moments and Blueprint story-beat hook.
-- Real-asset import/release documentation and primitive-fallback prohibition.
+**القاعدة:** المصدر الحقيقي لا يُستبدل بنتيجة مسطحة. يمكن تعديل المصدر ثم إعادة تشغيل التحويل. عند استبدال أصل، يحافظ على الـlogical asset ID ما دام الدور الوظيفي نفسه. لا تُعتبر طبقة الأصول مكتملة حتى يتم ربط الأصول فعليًا بالمشاهد والشخصيات والأنيميشن.
 
-## Stage 1 production layer still requiring Unreal asset authoring
-The remaining work that cannot be honestly completed through source-only repository edits is placement and wiring inside the actual Unreal level: five distributed worker locations, **at least seven distributed mine enemies**, real cages/chains/lift/bindings, rescue animations, camera/Sequencer shots, VFX/audio, and coordinated enemy encounter choreography. These require the real binary .uasset/.umap content and an Unreal build/editor environment.
+## 4. Stage 1 — Chains in the Mine
+### البوابات الإلزامية
+- `RescueWorkers = 5` عمال مختلفين.
+- `DefeatSlavers = 1` سلافر مخصص لهدف المرحلة.
 
-## Next engineering queue
-1. Stage 1 enemy escalation/encounter orchestration.
-2. Data-drive later-stage objectives.
-3. Animation-notify melee hit windows.
-4. Real climbing/ledge traversal and IK fall rescue.
-5. Wind/environment reactions.
-6. Complete ThunderBeast Crossing/Sense/Storm Charge.
-7. Companion AI/combat/rescue/persistence.
-8. Dialogue/quest/event orchestration and Sequencer.
-9. Broader save persistence for story/world/mount states.
-10. Real asset mapping/import.
-11. Android optimization and actual UE build verification.
+### القوة المعادية
+- يجب أن يحتوي المنجم على **7 أعداء/سلافرات على الأقل**، أي أكثر من العمال الخمسة.
+- السبعة حد إنتاجي أدنى، وليست مهمة قتل سبعة.
+- واحد على الأقل من الأعداء يرفع بوابة `DefeatSlavers`؛ البقية حراس ودوريات ومستجيبون لصنع الضغط والتصعيد.
+- يجب توزيعهم في أنحاء المنجم وليس تجميعهم في غرفة واحدة.
 
-## Continuity protocol
-At every new chat: read this file, Docs/ALSAEQA_MASTER_PROJECT_BIBLE.md, Docs/DEVELOPMENT_RULES.md, inspect latest relevant commits/files, continue from the highest unfinished item, and never recreate completed systems. After meaningful implementation, update this file.
+### التسلسل
+استيقاظ البطل بعد الانهيار → العودة للمنجم → اكتشاف العمال → إنقاذ 1 → استجابة الأعداء → إنقاذ 2 → إنقاذ 3 → تصعيد → إنقاذ 4 → إنقاذ 5 → هزيمة السلافر المخصص → كشف أول دليل → الانتقال التلقائي إلى Stage 2.
 
-## Quality gate
-No feature is done because a class or document exists. Runtime connection, failure safety, persistence implications, Android scalability and Blueprint/asset integration must be considered. Never claim a UE build succeeded without an actual build result.
+طرق الإنقاذ الخمس: Break Chain، Open Cage، Release Lift، Cut Binding، Escort Out. لكل عامل WorkerId ثابت، ويُحتسب الإنقاذ عند وصوله إلى منطقة الأمان.
+
+## 5. حالة الميزات: مكتمل / جزئي / غير مكتمل
+
+### مؤسس أو منفذ كأساس
+- بنية مشروع الموبايل.
+- نظام المراحل 1–70.
+- أساس الحفظ والتقدم.
+- أساس الحركة والكاميرا والتحكم اللمسي.
+- أساس السينمائيات ونقاط القصة.
+- أساس Stage 1 والأهداف.
+- خط CI للموبايل.
+- نظام Manifest وتنزيل وفحص الأصول الحقيقية.
+- نظام تحويل المصدر إلى GLB.
+- **مرحلة التطوير 1 — Character Base: مكتملة بعد البناء الناجح.**
+- **مرحلة التطوير 2 — Character Movement: مكتملة بعد البناء الناجح.**
+
+### جزئي ويحتاج ربطًا وإخراجًا فعليًا
+- ربط كل أصل حقيقي بالشخصية/البيئة/السلاح/المركوبة/الوحش المناسب.
+- استبدال Blockout بالأصول النهائية.
+- ربط الأنيميشن الحقيقي بالحركة والقتال والإنقاذ.
+- القتال المتقدم وردود الضربات.
+- AI الأعداء والرفيقة.
+- المشاهد السينمائية النهائية والكاميرات والصوت وVFX.
+- بناء Stage 1 النهائي بصريًا وGameplay.
+
+### غير مكتمل
+- نقل جميع أنظمة Unreal المهمة إلى النسخة المحمولة.
+- أهداف Gameplay فعلية للمراحل 4–70.
+- تسلق وLedge Traversal وIK للإنقاذ والسقوط.
+- نظام الرياح وتأثيرها على البيئة والملابس والشعر والرمال.
+- ThunderBeast: Lightning Crossing وThunder Sense وتصحيح Storm Charge وإكمال التكامل.
+- الحوار والمهام والأحداث المترابطة.
+- الحفظ الكامل لحالة القصة والعالم والرفيقة والإنقاذ والمركوبات والاكتشافات.
+- تحسين Android CPU/GPU/Memory ومستويات الجودة.
+- اختبار APK على جهاز Android حقيقي.
+
+## 6. ما تم في مرجع Unreal وما يجب فهمه
+المشروع الأصلي يحتوي على أساسات C++/Blueprint مهمة للحركة، القتال، الرعد، الصحة والإصابات والموت، الركوب، القدرات، التقدم، الأهداف، الإنقاذ والسينمائيات. هذه الأساسات **مرجع** وليست دليلًا على اكتمال النسخة المحمولة. يجب نقل كل نظام مطلوب إلى Godot وربطه واختباره بدل الادعاء بأنه انتقل تلقائيًا.
+
+## 7. قواعد الاستكمال
+1. لا تعِد تنفيذ ما تم إنجازه.
+2. لا تضف Placeholder كفن نهائي.
+3. افحص الملفات الحالية قبل التعديل.
+4. حافظ على IDs وحالة الحفظ عند ربط الأصول.
+5. أي ميزة بلا runtime path آمن لا تُعتبر مكتملة.
+6. لا تقل إن البناء ناجح إلا بعد نتيجة GitHub Actions فعلية.
+7. حافظ على هوية الصاعقة في كل تعديل بصري أو قصصي.
+8. الأصول الحقيقية يجب أن تبقى قابلة لإعادة التعديل والتحويل.
+9. لا تُدخل ملفات ضخمة في Git history لمجرد نسخ Release؛ استخدم خط الأصول المعتمد.
+10. لا تنشئ ملفًا موازيًا لوظيفة موجودة؛ وسّع النظام canonical الموجود بعد فحصه.
+
+## 8. ترتيب الاستكمال
+1. إكمال ربط الأصول الحقيقية بالمشروع والمشاهد.
+2. بناء Stage 1 بصريًا وGameplay بشكل نهائي.
+3. ربط الأنيميشن والصوت وVFX والكاميرات السينمائية.
+4. إكمال القتال والـAI والحركة المتقدمة.
+5. تحويل أهداف المراحل 4–70 إلى Gameplay فعلي (المراحل ١، ٢ و٣ منتهية برمجيًا).
+6. إكمال الرفيقة والمركوبات وThunderBeast.
+7. الحفظ الكامل.
+8. تحسين Android.
+9. بناء APK واختباره فعليًا.
+
+## 9. بروتوكول الاستمرارية
+في أي جلسة جديدة: اقرأ هذا الملف، ثم `Docs/ALSAEQA_MASTER_PROJECT_BIBLE.md` و`Docs/DEVELOPMENT_RULES.md` و`mobile/CONVERSION_STATUS.md`، وافحص آخر commits والملفات قبل التنفيذ. أكمل أعلى بند غير مكتمل ولا تنشئ نسخة موازية.
+
+## 10. تعريف الإنجاز
+وجود الوثيقة أو السكربت وحده لا يعني اكتمال الميزة. الإنجاز يعني اتصال runtime، معالجة أخطاء آمنة، حفظ/استرجاع عند الحاجة، توافق Android، وربط حقيقي بالأصول والأنيميشن والصوت وVFX والعرض السينمائي.
+
+**الاسم الرسمي المعتمد: الصاعقة موبايل — ALSAEQA Mobile.**
+
+## 11. سجل الجلسات السابقة
+تمت مراجعة مستودع **alsaeqa_mobile فقط**، مع فحص وثائق الاستمرارية، بنية نسخة الموبايل، ملفات المشهد والسكربتات، طبقة الأصول، ومسار CI. تم تصحيح مسار SHA-256 للأصول، وتثبيت تحويل المصدر الحقيقي إلى GLB، ثم تأسيس Character Base وCharacter Movement داخل النظام canonical الموجود.
+
+## 13. مرحلة التطوير 4 — Real Asset Integration
+### الحالة
+مكتملة — تم اجتياز التحقق الكامل والبناء وتصدير Android بنجاح.
+
+### إغلاق المرحلة
+- تم اجتياز Download/Verify للأصول الحقيقية، فحص الأرشيفات المتداخلة، تحويل GLB، بناء وتصدير Android APK بنجاح.
+- Run 34312742424 / Build 123: SUCCESS. Commit: 6cc7cb171c26064ac853729533745d89c9db7440.
+- المرحلة الرابعة أُغلقت رسميًا.
+
+## 12. مرحلة التطوير 3 — Animation System (تقنية، مو Stage 3 القصة)
+- توسيع `player.gd` لاكتشاف `Skeleton3D`/`AnimationPlayer` من الأصل الحقيقي وربط حالات الحركة/القتال بالأنيميشن الفعلي، بدون اختراع ملفات بديلة، مع fallback آمن عند غياب مقطع مطابق.
+- Advanced IK/AnimationTree/hit-windows الدقيقة تبقى لمراحل لاحقة.
+
+## 14. مرحلة التطوير 5 — Combat System
+اعتماد `player.gd` كنظام القتال canonical: توقيت هجمات، نافذة إصابة، cooldown، combo ثلاث ضربات. مكتمل جزئيًا (تكامل الأضرار الحقيقي أُكمل لاحقًا بالقسم ١٧).
+
+## 15. إصلاحات جلسة تشخيص T-Pose والمادة الرمادية ودور Worker
+- **T-Pose**: السبب الجذري كان `TypeError` بخطأ نوع بيانات (`float` بدل `int`) بسطر واحد بسكربت إرفاق الأنيميشن — مُصلح ومؤكد.
+- **المادة الرمادية (بهذي الجلسة تحديدًا)**: تبيّن أن جسم `Superhero_Male_FullBody` مصمم أصلًا كجسم أساسي عاري، والحل كان ربط ملابس حقيقية (`attach_hero_outfit.py`) — مؤكد بصريًا.
+- دور "worker"/"guard": بديل موثّق (جسم البطل) بسبب غياب حزمة مخصصة — ما زال مفتوحًا.
+
+## 16. جلسة توسّع كبيرة — المرحلة ١ كاملة + بداية المرحلة ٢ + كل الأنظمة المساندة
+
+### أ) إصلاحات جذرية مؤكدة
+T-Pose ومشكلة المادة محسومتان (انظر القسم ١٥). شرط هزيمة الحراس صُحّح: **كل** الحراس المتولّدين لازم يُهزَموا تراكميًا، مو حارس واحد "مُعيَّن".
+
+### ب) الأنظمة المبنية من الصفر
+`worker_captive.gd` (تفاعل إنقاذ)، `guard_enemy.gd` (جسم فيزيائي + صحة)، نظام صوت حقيقي CC0 (Kenney)، `story_intro.gd` (مقدمة سردية)، المتجر/المخزن (`store_screen.gd`/`inventory_screen.gd`)، نظام المعدات (`equipment_catalog.gd`)، شاشة الإعدادات، تخطيط بيئي محيطي محسّن، معمارية متعددة المراحل (`GameState.advance_to_next_stage()` + `real_asset_world.gd` الحسّاس للمرحلة).
+
+### ج) المرحلة الثانية "The Hidden Mark"
+موقعها صخور محيط المنجم (مو الغابة — تلك Stage 6). الهدف: صندوق سلاح مخفي + هزيمة حارسين. المكافأة: أول ترقية حقيقية (سلاح/ملابس/درع) تُلبَس تلقائيًا. `stage2_controller.gd`/`weapon_chest.gd` مبنيان. **فجوة موثّقة**: صندوق السلاح بلا موديل ثلاثي أبعاد بعد (منطقة تفاعل غير مرئية تعمل وظيفيًا).
+
+### د) حالة ما بعد تلك الجلسة
+ربط `Stage2` بـ`main.gd` أُغلق لاحقًا (انظر القسم ١٧). باقي البنود (موديل الصندوق، AI الحراس، دور worker/guard البديل، الشاشة الرئيسية بلا Tween) ما زالت مفتوحة.
+
+### هـ) بنية الأصول الحقيقية (مرجع سريع)
+- **البطل**: `Superhero_Male_FullBody` + حركة `Universal Animation Library` + ملابس `Modular Character Outfits - Fantasy`.
+- **البيئة**: خليط `Ultimate Modular Ruins`، `Modular Dungeon`، `Medieval Village MegaKit`، `Stylized Nature MegaKit`، `Fantasy Props MegaKit`.
+- **الوحوش**: `Bestiary - Dungeon Monsters Kit` + `ALSAEQA_EXTRA_MONSTERS`.
+- **الصوت**: مصدر خارجي CC0 (Kenney عبر GitHub) — حزم ALSAEQA الأصلية لا تحتوي أي ملف صوتي.
+
+## 17. جلسة ضخمة — نظام صحة/موت/checkpoint + المرحلة ٣ كاملة + إصلاحات حرجة على كل المراحل + تحقق بصري حقيقي (Blender + Godot render فعليين)
+
+### السياق
+هذه الجلسة استخدمت لأول مرة بيئة تحقق حقيقية كاملة: تم تثبيت **Blender 4.0** و**Godot 4.4** و**Xvfb + Mesa llvmpipe** (رندر software-GL حقيقي) محليًا، وتنزيل الحزم الحقيقية الفعلية من `ali12hhh-oss/alsaeqa` releases وتحويلها فعليًا عبر `blender_convert.py`، ثم *رؤية* النتيجة بلقطات شاشة حقيقية — مو افتراض أو "يفترض أنه يشتغل". هذا كشف أخطاء حقيقية ما كانت لتُكتشف بمراجعة الكود فقط.
+
+### أ) نظام صحة/موت/إعادة إحياء للبطل (جديد بالكامل)
+قبل هذه الجلسة: **لا يوجد أي عدو بكامل اللعبة يقدر يضرب البطل** — الحراس والوحوش ما عندهم أي منطق هجوم إطلاقًا. أُضيف:
+- `player.gd`: `current_health`/`max_health`، `receive_damage()`، `_die()`، `respawn_at()`، نافذة عدم قابلية إصابة قصيرة بعد كل ضربة + أثناء التدحرج (dodge invincibility).
+- `hostile_creature.gd` (جديد): أساس مشترك (`CharacterBody3D`) لكل الأعداء — صحة، `receive_damage()`، هجوم تماس فعلي بحق البطل (`_try_attack_hero()`)، تسجيل تلقائي بمجموعة `stage_controller`. `guard_enemy.gd` صار يرث منه (فعليًا صار الحراس بكل المراحل يقدرون يضربون البطل الآن لأول مرة، مو بس بالمرحلة ٣).
+- `checkpoint_zone.gd` (جديد) + حقول `has_checkpoint`/`checkpoint_position`/`checkpoint_rotation_y` بـ`game_state.gd` (محفوظة فعليًا). عند الموت: يعود البطل لآخر نقطة تفتيش (بداية المرحلة، أو نقطة لاحقة إذا مرّ منها)، مو لبداية المرحلة دائمًا.
+
+### ب) المرحلة الثالثة "Echo Under Stone" — مبنية ومُختبرة بصريًا بالكامل
+بناءً على فكرة المستخدم (توسيع محيط المنجم بصخور/كهوف، ذكريات عائلية، وحوش صغيرة، وحش زنزانة نهائي بكهف كبير):
+- **الوحوش**: فُتحت الحزم الحقيقية فعليًا (لا تخمين) — **لا يوجد "خفاش" ولا "مستذئب" حرفيًا بأي حزمة**. البدائل الحقيقية المُستخدمة: `PinkBlob`/`GreenBlob`/`GreenSpikyBlob`/`Mushnub` (وحوش صغيرة من `ALSAEQA_EXTRA_MONSTERS.zip.zip`، فئة Blob) كتهديدات جانبية غير مُلزمة (`cave_monster.gd`، `counts_toward_stage_clear=false`)، و**Imp** (من `Bestiary - Dungeon Monsters Kit` الحقيقية) كوحش الزنزانة النهائي المُلزم (`dungeon_monster.gd`).
+- **بنية الكهف**: مبنية يدويًا (مو scatter عشوائي) على شبكة 2م باستخدام قياسات حقيقية قِيست فعليًا بـBlender (Bounding Box):
+
+| القطعة | الحجم الحقيقي (متر) |
+|---|---|
+| `Wall` | 2.00 × 2.00 (سُمك 0.29) |
+| `Column_Round` | 0.66 × 3.99 (ارتفاع) |
+| `Arch_Round` | 3.09 × 3.53 (ارتفاع) |
+
+  نفق مسقوف بجدران حقيقية (Wall/Wall_Broken/Wall_Overgrown/Wall_Hole بالتناوب) + شعلتان (Torch) → قوس عبور (Arch_Round، حُجّم ×1.6 بعد رؤية أنه يبدو أقصر من الجدران بلقطة حقيقية) → غرفة مسوّرة بأربعة أعمدة زاوية (Column_Round) والوحش النهائي بمنتصفها. **تكرر البناء 3 مرات مع رندر حقيقي بينهم للتأكد بصريًا**، مو تسليم أول نسخة.
+- **نقطة تفتيش** قبل مدخل الغرفة مباشرة (`checkpoint_zone.gd`).
+
+### ج) أخطاء حرجة حقيقية اكتُشفت وأُصلحت (تمس كل المراحل، مو المرحلة ٣ فقط)
+اكتُشفت بتشغيل فيزياء حقيقي (physics simulation) ورندر حقيقي، مو بمراجعة كود:
+
+1. **البطل يسقط عبر الأرض للأبد** — مؤكد بمحاكاة فيزياء فعلية (`hero_y` وصل ٩٠- بعد 240 إطار، `is_on_floor()` أبدًا true). السبب: `Ground` (MeshInstance3D بصري) ما كان له أي `CollisionShape` إطلاقًا. **أُضيف `GroundBody` (StaticBody3D) حقيقي.** هذا كان يعني أن اللعبة **لا يمكن لعبها إطلاقًا** بأي بناء حقيقي سابق — خلل أساسي كان خافيًا لأن كل الاختبارات السابقة كانت بدون أصول حقيقية (سقوط فوري = لا شيء يظهر أصلًا للفحص).
+2. **لا يوجد Joystick لمسي إطلاقًا** — `virtual_joystick.gd` كان موجودًا بالمستودع لكن **غير مُستخدم بأي مكان**. التحكم كان لوحة مفاتيح فقط (WASD). **لاعب اللمس الحقيقي (أي لاعب Android فعلي) ما كان يقدر يتحرك إطلاقًا.** أُضيف للواجهة فعليًا وأُعيد ترتيب أزرار الانحناء/الاستماع لإفساح المكان له.
+3. **لا يوجد زر "تفاعل" لمسي** — `worker_captive.gd`/`weapon_chest.gd` يعتمدان على `Input.is_action_just_pressed("interact")` المربوط بمفتاح E فقط. **لاعب اللمس ما كان يقدر ينقذ عامل ولا يفتح صندوق سلاح إطلاقًا.** أُضيف زر فعلي.
+
+### د) أخطاء حقيقية باستيراد Blender (مو خلل كود Godot) — اكتُشفت برندر فعلي
+1. **الأشجار/الشجيرات تظهر بيضاء/كروم لامع بدل أخضر/بني**: مادة FBX مستوردة بـ`metallic=1.0` بدون نسيج معدني (خلل استيراد شائع). أُضيفت `sanitize_metallic()` تُصفّر القيمة تلقائيًا عند عدم وجود ربط حقيقي.
+2. **وحش Imp ووحوش Blob تظهر بيضاء بالكامل** — **خلل مختلف تمامًا** عن السابق: المادة كانت *مربوطة* فعليًا بصورة، لكن الصورة نفسها ما حُمّلت (مسار مطلق كُتب وقت التأليف على جهاز آخر لا يوجد بهذا الجهاز لـImp، أو نسيج Atlas مشترك يقع خارج مجلد كل FBX بذاته لوحوش Blob). دالة الإصلاح القديمة (`repair_material_base_color_links`) ما كانت تكتشف هذه الحالة لأنها تفترض "مربوط = سليم". أُضيفت `repair_broken_image_textures()` تعيد ربط أي صورة مربوطة-لكن-فاشلة بملف حقيقي بنفس الاسم بالبحث صعودًا بمجلدات الأب. **تم التأكد بصريًا (رندر قبل/بعد) أن كل الوحوش تظهر بألوانها الحقيقية الآن.**
+
+### هـ) ما تبقى مفتوحًا بعد هذه الجلسة (بصراحة)
+- محاذاة الإضاءة: جانب واحد من ممر المرحلة ٣ يظهر معتمًا بلقطة حقيقية (إضاءة `KeyLight` وحيدة الاتجاه) — يحتاج مراجعة إضاءة عامة، ليست خاصة بالمرحلة ٣.
+- محاذاة القوس بدقة أكبر (الحل الحالي: تحجيم يدوي ×1.6 بعد رندر حقيقي، مو حل جذري للفرق بوحدات القياس).
+- المجموعة المحدودة من الأصول المحوّلة محليًا بهذه الجلسة هي عيّنة مختارة للاختبار فقط، وليست كل الأصول — CI الحقيقي يحوّل المكتبة كاملة.
+- موديل صندوق سلاح المرحلة ٢، AI الحراس/الوحوش (دورية/مطاردة)، دور worker/guard البديل — ما زالت كما هي.
+- المراحل ٤-٧٠: لا يوجد محتوى فعلي بعد، بانتظار فكرة المستخدم لكل مرحلة.
+
+### و) بروتوكول الاستمرارية المحدّث
+لأي جلسة قادمة: **لا تكرر تشخيص T-Pose/المادة الرمادية/ربط Stage2 — كلها محسومة.** المراحل ١، ٢ و٣ مكتملة برمجيًا مع نظام صحة/موت/checkpoint حقيقي. الخطوة التالية: **المرحلة ٤** تحتاج الفكرة العامة من المستخدم قبل البدء (نفس الأسلوب المتّبع بالمراحل ٢ و٣).
