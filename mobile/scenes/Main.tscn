@@ -1,4 +1,4 @@
-[gd_scene load_steps=16 format=3]
+[gd_scene load_steps=18 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/player.gd" id="2_player"]
@@ -12,6 +12,7 @@
 [ext_resource type="Script" path="res://scripts/settings_screen.gd" id="10_settings"]
 [ext_resource type="Script" path="res://scripts/stage2_controller.gd" id="11_stage2"]
 [ext_resource type="Script" path="res://scripts/stage3_controller.gd" id="12_stage3"]
+[ext_resource type="Script" path="res://scripts/virtual_joystick.gd" id="13_joystick"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_hero"]
 radius = 0.38
@@ -29,6 +30,9 @@ roughness = 0.92
 [sub_resource type="PlaneMesh" id="GroundMesh"]
 size = Vector2(120, 120)
 material = SubResource("GroundMaterial")
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_ground"]
+size = Vector3(240, 2, 240)
 
 [node name="ALSAEQAMobile" type="Node3D"]
 script = ExtResource("1_main")
@@ -49,6 +53,18 @@ omni_range = 28.0
 [node name="Ground" type="MeshInstance3D" parent="."]
 position = Vector3(0, -0.02, 0)
 mesh = SubResource("GroundMesh")
+
+; The visual Ground above has no physics of its own. Without a real collider
+; the hero (and every HostileCreature, which also applies gravity) fell
+; through the world forever the moment gameplay began — verified with a
+; physics simulation: hero Y reached -90 after 240 physics frames and
+; is_on_floor() never became true. Larger than the visual plane on purpose,
+; so walking past its edge never drops the hero into the void.
+[node name="GroundBody" type="StaticBody3D" parent="."]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="GroundBody"]
+position = Vector3(0, -1, 0)
+shape = SubResource("BoxShape3D_ground")
 
 [node name="World" type="Node3D" parent="."]
 script = ExtResource("4_visual")
@@ -232,33 +248,48 @@ mouse_filter = 2
 visible = false
 script = ExtResource("6_controls")
 
+[node name="Joystick" type="Control" parent="MobileHUD/MobileControls"]
+offset_left = 30.0
+offset_top = 480.0
+offset_right = 230.0
+offset_bottom = 680.0
+mouse_filter = 1
+script = ExtResource("13_joystick")
+
 [node name="Sprint" type="Button" parent="MobileHUD/MobileControls"]
-offset_left = 72.0
+offset_left = 260.0
 offset_top = 610.0
-offset_right = 202.0
+offset_right = 390.0
 offset_bottom = 680.0
 text = "ركض"
 
 [node name="Roll" type="Button" parent="MobileHUD/MobileControls"]
-offset_left = 215.0
+offset_left = 403.0
 offset_top = 610.0
-offset_right = 345.0
+offset_right = 533.0
 offset_bottom = 680.0
 text = "تدحرج"
 
 [node name="Crouch" type="Button" parent="MobileHUD/MobileControls"]
-offset_left = 358.0
-offset_top = 610.0
-offset_right = 488.0
-offset_bottom = 680.0
+offset_left = 260.0
+offset_top = 530.0
+offset_right = 390.0
+offset_bottom = 600.0
 text = "انحناء"
 
 [node name="Listen" type="Button" parent="MobileHUD/MobileControls"]
-offset_left = 501.0
-offset_top = 610.0
-offset_right = 631.0
-offset_bottom = 680.0
+offset_left = 403.0
+offset_top = 530.0
+offset_right = 533.0
+offset_bottom = 600.0
 text = "استماع"
+
+[node name="Interact" type="Button" parent="MobileHUD/MobileControls"]
+offset_left = 1250.0
+offset_top = 650.0
+offset_right = 1400.0
+offset_bottom = 715.0
+text = "تفاعل"
 
 [node name="Light" type="Button" parent="MobileHUD/MobileControls"]
 offset_left = 1430.0
