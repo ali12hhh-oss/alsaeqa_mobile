@@ -1,4 +1,4 @@
-[gd_scene load_steps=18 format=3]
+[gd_scene load_steps=19 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/player.gd" id="2_player"]
@@ -13,6 +13,7 @@
 [ext_resource type="Script" path="res://scripts/stage2_controller.gd" id="11_stage2"]
 [ext_resource type="Script" path="res://scripts/stage3_controller.gd" id="12_stage3"]
 [ext_resource type="Script" path="res://scripts/virtual_joystick.gd" id="13_joystick"]
+[ext_resource type="Script" path="res://scripts/stage4_controller.gd" id="14_stage4"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_hero"]
 radius = 0.38
@@ -86,6 +87,9 @@ script = ExtResource("11_stage2")
 
 [node name="Stage3" type="Node" parent="."]
 script = ExtResource("12_stage3")
+
+[node name="Stage4" type="Node" parent="."]
+script = ExtResource("14_stage4")
 
 [node name="Camera3D" type="Camera3D" parent="."]
 position = Vector3(0, 4, 7.5)
