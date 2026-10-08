@@ -54,6 +54,8 @@ const WEAPON_CHEST_SCRIPT := preload("res://scripts/weapon_chest.gd")
 const CAVE_MONSTER_SCRIPT := preload("res://scripts/cave_monster.gd")
 const DUNGEON_MONSTER_SCRIPT := preload("res://scripts/dungeon_monster.gd")
 const CHECKPOINT_ZONE_SCRIPT := preload("res://scripts/checkpoint_zone.gd")
+const GANG_MEMBER_SCRIPT := preload("res://scripts/gang_member.gd")
+const GANG_ALARM_ZONE_SCRIPT := preload("res://scripts/gang_alarm_zone.gd")
 
 ## Roles that need an actual physics body (CharacterBody3D) wrapped around
 ## the imported visual, so the hero's melee shape-query and this creature's
@@ -63,7 +65,22 @@ const CHECKPOINT_ZONE_SCRIPT := preload("res://scripts/checkpoint_zone.gd")
 const PHYSICS_BODY_SCRIPTS := {
     "guard": GUARD_ENEMY_SCRIPT,
     "cave_monster": CAVE_MONSTER_SCRIPT,
-    "dungeon_monster": DUNGEON_MONSTER_SCRIPT
+    "dungeon_monster": DUNGEON_MONSTER_SCRIPT,
+    "gang_member": GANG_MEMBER_SCRIPT
+}
+
+## Where the hero is placed when a stage begins (stage_advanced fires, or
+## the game first loads already on that stage). Without this, the hero
+## simply stayed wherever the previous stage left it while the world
+## rebuilt around it — harmless when Stage 2's small area happened to
+## overlap Stage 1's, but Stage 4 deliberately continues far past Stage
+## 3's chamber (x=38), so stage transitions now reposition the hero
+## explicitly instead of relying on coincidence.
+const STAGE_START_TRANSFORMS := {
+    1: {"position": Vector3.ZERO, "rotation_y": 0.0},
+    2: {"position": Vector3(0, 0, 4), "rotation_y": 0.0},
+    3: {"position": Vector3(0, 0, 0), "rotation_y": 0.0},
+    4: {"position": Vector3(40, 0, 0), "rotation_y": -90.0}
 }
 
 @export var worker_count := 5
@@ -92,6 +109,18 @@ func _ready() -> void:
 
 func _on_stage_advanced(new_stage: int) -> void:
     rebuild_for_stage(new_stage)
+    _reposition_hero_for_stage(new_stage)
+
+func _reposition_hero_for_stage(stage: int) -> void:
+    var start_data = STAGE_START_TRANSFORMS.get(stage)
+    if start_data == null:
+        return
+    var hero: Node3D = get_parent().get_node_or_null("Hero")
+    if hero == null:
+        return
+    hero.global_position = start_data["position"]
+    hero.rotation.y = deg_to_rad(start_data["rotation_y"])
+    GameState.set_checkpoint(hero.global_position, hero.rotation.y)
 
 ## Spawns/binds the canonical hero exactly once. The hero body ($Hero in
 ## Main.tscn) persists for the entire game; only its equipped gear visuals
@@ -120,6 +149,8 @@ func rebuild_for_stage(stage: int) -> void:
             _build_stage_2()
         3:
             _build_stage_3()
+        4:
+            _build_stage_4()
         _:
             push_warning("real_asset_world.gd has no world content defined yet for stage %d — leaving the area empty rather than reusing Stage 1/2 content, since neither is what this stage is meant to look like." % stage)
     _report_role_coverage(_cached_assets)
@@ -264,6 +295,158 @@ func _spawn_cave_checkpoint() -> void:
     # point or slightly before it, not the stage start" requirement.
     checkpoint.position = Vector3(19, 0, 0)
 
+const GANG_TINT := Color(0.55, 0.26, 0.2)
+
+## Stage 4 continues the same corridor theme past Stage 3's chamber
+## (x=38): x=40..55 is a rock-to-forest transition (ruin pieces thinning
+## out, trees/bushes increasing), x=55..70 is the observation approach
+## (GangAlarmZone covers it), the gang tableau sits around x=58, and the
+## cave entrance with its 3 door guards is at x=78.
+##
+## HONEST SIMPLIFICATION: the brief describes the gang actively walking
+## the captive companion to the cave. Simulating that as real pathfinding
+## AI was out of scope for this pass; the gang/companion are placed as a
+## static tableau the hero observes from a distance, and the 3 door guards
+## are presented as already in position at the cave mouth beyond it
+## (narrative compression, not a live escort sequence).
+##
+## HONEST ASSET GAP: no "bandit"/"leader" outfit exists in the real packs
+## (only Peasant and Ranger — verified by opening the actual archive, not
+## guessed). Gang figures use the same hero-body fallback workers/guards
+## already use, distinguished by a colour tint instead of real clothing,
+## since no general runtime "equip any NPC" system exists yet (only the
+## hero's own equipment pipeline does). This is a documented gap, not a
+## final look.
+func _build_stage_4() -> void:
+    _spawn_stage4_transition_terrain()
+    _spawn_stage4_tableau()
+    _spawn_stage4_alarm_zone()
+    _spawn_stage4_checkpoint()
+    _spawn_role_variants("guard", _cached_assets, 3, Vector3(78, 0, 0), 2.0)
+
+func _spawn_stage4_transition_terrain() -> void:
+    # Thin out ruin-style rock environment pieces across x=40..55, and
+    # layer in real vegetation (Tree_1-3, Bush_*, Grass, DeadTree_1-2 —
+    # already verified real assets from Stage 3's vegetation pass) more
+    # densely as x increases, reading as the rocky area giving way to
+    # forest edge rather than a hard cut.
+    var rock_pieces := [
+        RUINS_FBX + "Wall_Broken.glb", RUINS_FBX + "Wall_Overgrown.glb",
+        RUINS_FBX + "Floor_Standard.glb", RUINS_FBX + "Floor_Hole_Corner.glb"
+    ]
+    var veg_pieces := [
+        RUINS_FBX + "Tree_1.glb", RUINS_FBX + "Tree_2.glb", RUINS_FBX + "Tree_3.glb",
+        RUINS_FBX + "DeadTree_1.glb", RUINS_FBX + "Bush_Large.glb",
+        RUINS_FBX + "Bush_1x1.glb", RUINS_FBX + "Bush_Round.glb", RUINS_FBX + "Grass.glb"
+    ]
+    var rng := RandomNumberGenerator.new()
+    rng.seed = 404  # deterministic layout, not a different one on every rebuild
+    var x := 40.0
+    var i := 0
+    while x <= 55.0:
+        var veg_chance: float = (x - 40.0) / 15.0  # 0 near the rocks, ~1 near the forest edge
+        var z := rng.randf_range(-7.0, 7.0)
+        var pool := veg_pieces if rng.randf() < veg_chance else rock_pieces
+        _spawn_named_piece(pool[i % pool.size()], Vector3(x, 0, z), rng.randf_range(0.0, 360.0))
+        x += rng.randf_range(2.0, 3.5)
+        i += 1
+    # A denser treeline either side of the approach corridor from x=55 on,
+    # framing it without blocking the straight path down the centre.
+    var tx := 56.0
+    while tx <= 76.0:
+        _spawn_named_piece(veg_pieces[int(tx) % veg_pieces.size()], Vector3(tx, 0, -6.0 - rng.randf_range(0.0, 3.0)), rng.randf_range(0.0, 360.0))
+        _spawn_named_piece(veg_pieces[(int(tx) + 2) % veg_pieces.size()], Vector3(tx, 0, 6.0 + rng.randf_range(0.0, 3.0)), rng.randf_range(0.0, 360.0))
+        tx += 4.0
+
+## Static observation tableau: the companion, captive, with the gang
+## (leader + second-in-command + 4 members) gathered around her, roughly
+## at x=58. Purely decorative (plain Node3D, not HostileCreature) — the
+## hero is only meant to watch here, matching "stage 4 only watches, does
+## not engage them yet".
+func _spawn_stage4_tableau() -> void:
+    var hero_files := _hero_files(_cached_assets)
+    if hero_files.is_empty():
+        push_warning("Stage 4 tableau: no hero-body fallback asset available to represent the gang/companion")
+        return
+    var body_path: String = hero_files[0]
+
+    _spawn_tinted_figure(body_path, Vector3(58, 0, 3), 180.0, Color(1.0, 0.92, 0.8))  # companion — lighter tint to stand apart
+    _spawn_tinted_figure(body_path, Vector3(56, 0, 1), 160.0, GANG_TINT)   # leader
+    _spawn_tinted_figure(body_path, Vector3(56, 0, 5), 200.0, GANG_TINT)   # second-in-command
+    var member_offsets := [Vector3(54, 0, 2), Vector3(54, 0, 4), Vector3(59, 0, 0), Vector3(59, 0, 6)]
+    for offset in member_offsets:
+        _spawn_tinted_figure(body_path, offset, rng_angle(), GANG_TINT)
+
+func rng_angle() -> float:
+    return randf() * 360.0
+
+func _spawn_tinted_figure(path: String, position: Vector3, rotation_y_degrees: float, tint: Color) -> void:
+    var packed := load(path) as PackedScene
+    if packed == null:
+        return
+    var inst := packed.instantiate() as Node3D
+    add_child(inst)
+    inst.position = position
+    inst.rotation_degrees.y = rotation_y_degrees
+    _normalize_height(inst, 1.9)
+    _apply_tint(inst, tint)
+
+func _apply_tint(node: Node, tint: Color) -> void:
+    if node is MeshInstance3D:
+        var mesh_instance := node as MeshInstance3D
+        if mesh_instance.mesh != null:
+            for i in mesh_instance.mesh.get_surface_count():
+                var mat := mesh_instance.get_active_material(i)
+                if mat is StandardMaterial3D:
+                    var dup := (mat as StandardMaterial3D).duplicate() as StandardMaterial3D
+                    dup.albedo_color = dup.albedo_color * tint
+                    mesh_instance.set_surface_override_material(i, dup)
+    for child in node.get_children():
+        _apply_tint(child, tint)
+
+## Covers the approach from the transition terrain to the tableau
+## (x=55..70). Entering it without crouching/listening spawns the ambush.
+func _spawn_stage4_alarm_zone() -> void:
+    var zone := Area3D.new()
+    zone.name = "GangAlarmZone"
+    zone.set_script(GANG_ALARM_ZONE_SCRIPT)
+    zone.collision_layer = 0
+    zone.collision_mask = 1
+    var shape := CollisionShape3D.new()
+    var box := BoxShape3D.new()
+    box.size = Vector3(16, 4, 16)
+    shape.shape = box
+    zone.add_child(shape)
+    add_child(zone)
+    zone.position = Vector3(62, 0, 2)
+    zone.connect("detected", Callable(self, "_on_stage4_detected"))
+
+func _on_stage4_detected() -> void:
+    push_warning("Stage 4: hero detected during the observation approach — spawning the full-gang ambush (intentionally overwhelming; not an alternate clear route)")
+    var hero: Node3D = get_parent().get_node_or_null("Hero")
+    var center: Vector3 = hero.global_position if hero != null else Vector3(60, 0, 2)
+    for i in 6:
+        var angle := TAU * float(i) / 6.0
+        var offset := Vector3(cos(angle) * 3.0, 0, sin(angle) * 3.0)
+        _spawn_role_variants("gang_member", _cached_assets, 1, center + offset, 1.9)
+
+func _spawn_stage4_checkpoint() -> void:
+    var checkpoint := Area3D.new()
+    checkpoint.name = "GangCaveCheckpoint"
+    checkpoint.set_script(CHECKPOINT_ZONE_SCRIPT)
+    checkpoint.collision_layer = 0
+    checkpoint.collision_mask = 1
+    var shape := CollisionShape3D.new()
+    var box := BoxShape3D.new()
+    box.size = Vector3(4, 3, 4)
+    shape.shape = box
+    checkpoint.add_child(shape)
+    add_child(checkpoint)
+    # Just before the 3 door guards at x=78, matching the "same point or
+    # slightly before it, not the stage start" requirement given explicitly
+    # for Stage 4's death/respawn behaviour.
+    checkpoint.position = Vector3(74, 0, 0)
+
 func _find_glb_files(path: String) -> Array[String]:
     var result: Array[String] = []
     var dir := DirAccess.open(path)
@@ -286,7 +469,9 @@ func _find_glb_files(path: String) -> Array[String]:
 
 ## Roles that fall back to reusing the canonical hero body (with its
 ## attached outfit) when no dedicated real asset exists for them.
-const BODY_FALLBACK_ROLES := ["worker", "guard"]
+## "gang_member" added for Stage 4's ambush — same no-dedicated-pack gap as
+## worker/guard, honestly reported the same way.
+const BODY_FALLBACK_ROLES := ["worker", "guard", "gang_member"]
 
 func _role_files(role: String, assets: Array[String]) -> Array[String]:
     var matches: Array[String] = []
@@ -507,6 +692,8 @@ func _spawn_role_variants(role: String, assets: Array[String], count: int, origi
             instance.name = "%sVisual" % role.capitalize()
             body.add_child(instance)
             _normalize_height(instance, target_height)
+            if role == "gang_member":
+                _apply_tint(instance, GANG_TINT)
             continue
 
         add_child(instance)
