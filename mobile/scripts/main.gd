@@ -6,6 +6,7 @@ extends Node3D
 @onready var stage1 = $Stage1
 @onready var stage2 = $Stage2
 @onready var stage3 = $Stage3
+@onready var stage4 = $Stage4
 @onready var mobile_controls: Control = $MobileHUD/MobileControls
 @onready var home_panel: Panel = $MobileHUD/HomePanel
 @onready var start_button: Button = $MobileHUD/HomePanel/StartButton
@@ -44,6 +45,7 @@ func _ready() -> void:
     # so only stage_ready is connected — same _on_stage_ready() every stage
     # uses, so the transition beat/HUD refresh behaves consistently.
     stage3.stage_ready.connect(_on_stage_ready)
+    stage4.stage_ready.connect(_on_stage_ready)
     hero.health_changed.connect(_on_hero_health_changed)
     hero.hero_died.connect(_on_hero_died)
     start_button.pressed.connect(_start_adventure)
@@ -184,6 +186,8 @@ func _set_gameplay_hud_visible(value: bool) -> void:
 ## than reusing Stage 1/2 text that would not describe them accurately.
 func _refresh_hud() -> void:
     match GameState.current_stage:
+        4:
+            objective_label.text = "راقب العصابة متخفياً • إياك أن يروك • اهزم حراس الكهف الثلاثة"
         3:
             objective_label.text = "ابحث عن الوحش داخل الكهف الكبير وواجهه"
         1:
