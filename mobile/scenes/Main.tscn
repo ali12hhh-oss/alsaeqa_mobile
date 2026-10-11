@@ -29,7 +29,7 @@ albedo_color = Color(0.16, 0.14, 0.12, 1)
 roughness = 0.92
 
 [sub_resource type="PlaneMesh" id="GroundMesh"]
-size = Vector2(120, 120)
+size = Vector2(240, 240)
 material = SubResource("GroundMaterial")
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_ground"]
