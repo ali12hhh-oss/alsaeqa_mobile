@@ -3,13 +3,11 @@ name: ALSAEQA Mobile Android
 on:
   push:
     branches: [main, mobile-conversion, mobile-assets-integration]
-  pull_request:
-    branches: [main]
+  
   workflow_dispatch:
 
 permissions:
   contents: read
-
 env:
   GODOT_VERSION: 4.4.1
   BLENDER_VERSION: 4.5.13
