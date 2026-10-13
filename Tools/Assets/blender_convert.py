@@ -1,4 +1,5 @@
 import bpy
+import gc
 import os
 import sys
 from pathlib import Path
@@ -15,12 +16,31 @@ EXTS = {".fbx", ".obj", ".dae", ".blend"}
 IMAGE_EXTS = (".png", ".jpg", ".jpeg", ".tga", ".bmp", ".tif", ".tiff")
 
 def reset_scene():
+    """Clears the scene between files AND actually frees the memory each
+    file used. The previous version only removed meshes/curves/materials/
+    cameras/lights with zero users — it never touched bpy.data.images (or
+    textures/node_groups), so every texture any FBX/OBJ in the batch ever
+    loaded stayed resident for the rest of the run. Across the real asset
+    library (hundreds of files, many with multiple 2K+ textures), that
+    leak grows until the process is OOM-killed by the OS partway through
+    the batch — confirmed from an actual CI run's log ("Killed" with no
+    Python traceback is the Linux OOM killer's signature, not a script
+    error), not a guess. orphans_purge's do_recursive walks the full
+    dependency chain (material -> node tree -> image) in one call, which
+    a one-level-at-a-time removal loop like the old code can miss when a
+    data-block's users count doesn't reach zero until something that
+    references *it* is also removed first.
+    """
     bpy.ops.object.select_all(action="SELECT")
     bpy.ops.object.delete(use_global=False)
-    for datablocks in (bpy.data.meshes, bpy.data.curves, bpy.data.materials, bpy.data.cameras, bpy.data.lights):
-        for block in list(datablocks):
-            if block.users == 0:
-                datablocks.remove(block)
+    for _ in range(3):
+        bpy.ops.outliner.orphans_purge(do_local_ids=True, do_linked_ids=True, do_recursive=True)
+    # orphans_purge frees Blender's own ID data-blocks, but anything still
+    # held by a Python-side reference (e.g. a variable from a prior loop
+    # iteration that hasn't gone out of scope yet) keeps the underlying
+    # memory alive regardless. An explicit collect ensures nothing lingers
+    # between files purely because Python's cyclic collector hasn't run.
+    gc.collect()
 
 def import_source(path: Path):
     reset_scene()
