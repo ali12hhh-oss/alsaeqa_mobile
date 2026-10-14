@@ -15,6 +15,43 @@ except (ValueError, IndexError):
 EXTS = {".fbx", ".obj", ".dae", ".blend"}
 IMAGE_EXTS = (".png", ".jpg", ".jpeg", ".tga", ".bmp", ".tif", ".tiff")
 
+# A single character body's GLB alone came out to 8.6 MB locally with its
+# four 2048x2048 textures (Dark/Light/Roughness/Normal) still at full
+# source resolution — confirmed by actually measuring the converted file,
+# not assumed. Every GLB export embeds its own full copy of whatever
+# textures its materials use (GLB has no shared/external texture
+# mechanism), so a texture reused across many small modular pieces (a
+# shared atlas, a common wall material) gets duplicated into every single
+# one of their GLBs. That multiplication, not any one texture being large
+# per se, is what took a real CI build from 1.6 GB to 7.4 GB once the
+# texture-linking fixes in this file started actually attaching textures
+# that had previously been silently missing. 1024px is a standard mobile
+# texture budget and quarters the pixel count (so roughly quarters each
+# texture's exported size) versus the 2048px source.
+MAX_TEXTURE_DIMENSION = 1024
+
+
+def downscale_oversized_images() -> int:
+    """Caps every loaded image to MAX_TEXTURE_DIMENSION on its longest
+    side before export. Must run after import (the images need to already
+    be loaded) and before the gltf export call for this file."""
+    resized = 0
+    for img in bpy.data.images:
+        if img.size[0] <= 0 or img.size[1] <= 0:
+            continue
+        longest = max(img.size[0], img.size[1])
+        if longest <= MAX_TEXTURE_DIMENSION:
+            continue
+        scale = MAX_TEXTURE_DIMENSION / float(longest)
+        new_w = max(1, round(img.size[0] * scale))
+        new_h = max(1, round(img.size[1] * scale))
+        try:
+            img.scale(new_w, new_h)
+            resized += 1
+        except Exception as exc:
+            print(f"[ALSAEQA] WARNING: could not downscale image '{img.name}' ({img.size[0]}x{img.size[1]}): {exc}")
+    return resized
+
 def reset_scene():
     """Clears the scene between files AND actually frees the memory each
     file used. The previous version only removed meshes/curves/materials/
@@ -305,6 +342,7 @@ for src in sorted(src_root.rglob("*")):
             continue
         repair_broken_image_textures(src.parent)
         repair_material_base_color_links(src.parent)
+        downscale_oversized_images()
         rel = src.relative_to(src_root).with_suffix(".glb")
         dst = dst_root / rel
         dst.parent.mkdir(parents=True, exist_ok=True)
