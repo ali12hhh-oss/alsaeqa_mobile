@@ -28,7 +28,15 @@ IMAGE_EXTS = (".png", ".jpg", ".jpeg", ".tga", ".bmp", ".tif", ".tiff")
 # that had previously been silently missing. 1024px is a standard mobile
 # texture budget and quarters the pixel count (so roughly quarters each
 # texture's exported size) versus the 2048px source.
-MAX_TEXTURE_DIMENSION = 1024
+# Dropped further from 1024 to 512 at the user's explicit request to push
+# the APK size down from the confirmed-working 2.4 GB build toward ~1 GB.
+# Verified locally first: the same hero-body file that was 3.3 MB at
+# 1024px came out to 1.5 MB at 512px (~2.2x), consistent with the earlier
+# 2048->1024 measurement (~2.6x) and with the real CI result (7.4 GB ->
+# 2.4 GB) once that ratio is applied to the whole package -> predicts
+# roughly 1.0-1.1 GB. 512px is a standard mobile character-texture budget,
+# not an unusually aggressive cut.
+MAX_TEXTURE_DIMENSION = 512
 
 
 def downscale_oversized_images() -> int:
