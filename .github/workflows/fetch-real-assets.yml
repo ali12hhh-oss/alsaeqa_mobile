@@ -1,0 +1,38 @@
+name: Fetch ALSAEQA Real Assets
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [mobile-conversion]
+
+permissions:
+  contents: read
+
+jobs:
+  assets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download real asset packs from ALSAEQA release
+        run: |
+          set -euo pipefail
+          mkdir -p mobile/assets/real
+          curl -L --fail --retry 5             "https://github.com/ali12hhh-oss/alsaeqa/releases/download/assets-v1/ALSAEQA_REAL_ASSETS.zip"             -o mobile/assets/real/ALSAEQA_REAL_ASSETS.zip
+          curl -L --fail --retry 5             "https://github.com/ali12hhh-oss/alsaeqa/releases/download/assets-v1/ALSAEQA_EXTRA_ULTIMATE_MODULAR_RUINS.zip.zip"             -o mobile/assets/real/ALSAEQA_EXTRA_ULTIMATE_MODULAR_RUINS.zip
+          curl -L --fail --retry 5             "https://github.com/ali12hhh-oss/alsaeqa/releases/download/assets-v1/ALSAEQA_EXTRA_MONSTERS.zip.zip"             -o mobile/assets/real/ALSAEQA_EXTRA_MONSTERS.zip
+
+      - name: Verify asset sizes and checksums
+        run: |
+          set -euo pipefail
+          test "$(stat -c%s mobile/assets/real/ALSAEQA_REAL_ASSETS.zip)" -eq 948489993
+          sha256sum mobile/assets/real/ALSAEQA_REAL_ASSETS.zip
+          sha256sum mobile/assets/real/ALSAEQA_EXTRA_ULTIMATE_MODULAR_RUINS.zip
+          sha256sum mobile/assets/real/ALSAEQA_EXTRA_MONSTERS.zip
+
+      - name: Publish asset pack artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ALSAEQA-real-assets-mobile
+          path: mobile/assets/real/
+          retention-days: 7
